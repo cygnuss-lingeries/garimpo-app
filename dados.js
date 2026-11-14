@@ -131,7 +131,7 @@ window.GarimpoDados = (function () {
 
       async listar() {
         const r = await banco.from('itens')
-          .select('id, origem, url, status, criado_em, decidido_em, comentario, erro, analise, transcricao, midias, post')
+          .select('id, origem, url, status, criado_em, decidido_em, comentario, erro, analise, transcricao, midias, post, resposta, arquivado_em, instalacao')
           .neq('status', 'duplicado').order('criado_em', { ascending: false }).limit(300);
         if (r.error) throw traduzir(r.error);
 

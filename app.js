@@ -258,6 +258,35 @@
     return h('a', { class: 'linha__elo', href: url, target: '_blank', rel: 'noopener noreferrer', text: texto });
   }
 
+  // O que aconteceu depois que o dono decidiu: a resposta à dúvida dele e onde o aprovado foi guardado.
+  function depoisDaDecisao(item) {
+    const linhas = [];
+    if (item.status === 'duvida' && item.comentario) {
+      // A resposta chega em até 3 frases curtas, uma por linha: vira lista, não parágrafo.
+      const frases = String(item.resposta || '').split('\n').map((t) => t.trim()).filter(Boolean).slice(0, 3);
+      linhas.push(frases.length > 0
+        ? linha('duvida', 'Resposta à sua dúvida', listaDe(frases, 'dir', 'itens--motivos'))
+        : linha('relogio', 'Dúvida enviada', 'O PC responde quando estiver ligado.'));
+    }
+    if (item.status === 'aprovado') {
+      const guardado = item.instalacao?.estado;
+      if (!item.arquivado_em) linhas.push(linha('relogio', 'Aprovado', 'O PC guarda quando estiver ligado.'));
+      else if (guardado === 'aguardando_instalacao') linhas.push(linha('check', 'Guardado no cofre', 'A skill ainda não foi instalada.'));
+      else if (guardado === 'nota') linhas.push(linha('check', 'Guardado no cofre', 'Está na nota de achados aprovados.'));
+      else linhas.push(linha('check', 'Aprovado', 'Fica guardado aqui no app.'));
+    }
+    return linhas.length > 0 ? h('div', { class: 'linhas', 'data-depois': true, role: 'status' }, linhas) : null;
+  }
+
+  // Troca só esse bloco quando a decisão muda, sem mexer no vídeo nem na rolagem.
+  function pintarDepois(item) {
+    const antigo = ref('corpo').querySelector('[data-depois]');
+    const novo = depoisDaDecisao(item);
+    if (antigo && novo) antigo.replaceWith(novo);
+    else if (antigo) antigo.remove();
+    else if (novo) ref('corpo').querySelector('.ficha__porque')?.after(novo);
+  }
+
   function ficha(item) {
     const f = item.analise;
     const fonte = seguro(f.fonte?.url);
@@ -270,6 +299,7 @@
         h('div', null, h('span', { class: 'linha__rotulo', text: 'Este post tentou dar ordens à IA' }), 'Nada foi obedecido. Trate como golpe.')),
       // O porquê vem logo abaixo do título: é o que decide, e precisa aparecer sem rolar.
       h('p', { class: 'ficha__porque', text: f.porque }),
+      depoisDaDecisao(item),
       h('div', { class: 'placar' },
         h('div', { class: 'placar__nota' }, h('span', { class: 'placar__numero' }, icone('gema'), numero(f.nota)), 'de 10'),
         h('div', { class: 'barras' }, NOTAS.map(([chave, rotulo]) => h('div', { class: 'barra' },
@@ -417,6 +447,8 @@
     botao.querySelector('span').textContent = 'Salvando...';
     try {
       await dados.decidir(item.id, decisao, comentario);
+      // Pergunta nova: a resposta antiga deixa de valer (o banco faz o mesmo).
+      if (decisao === 'duvida' && (comentario || null) !== (item.comentario || null)) item.resposta = null;
       Object.assign(item, { status: decisao, comentario: comentario || null, decidido_em: new Date().toISOString() });
     } catch (erro) {
       aviso.textContent = 'Não salvou. Confira a internet e toque de novo.';
@@ -426,7 +458,7 @@
     pintarDecisao(item);
     renderAbas();
     trocarCard(item);
-    if (largo.matches) desenharZoom();
+    pintarDepois(item);
   }
 
   async function salvarComentario() {
@@ -436,7 +468,9 @@
     if (comentario === (item.comentario || '')) return;
     try {
       await dados.decidir(item.id, item.status, comentario);
+      if (item.status === 'duvida') item.resposta = null;
       item.comentario = comentario || null;
+      pintarDepois(item);
     } catch (erro) {
       ref('erro-decisao').textContent = 'O comentário não salvou. Toque na decisão de novo.';
       ref('erro-decisao').hidden = false;
