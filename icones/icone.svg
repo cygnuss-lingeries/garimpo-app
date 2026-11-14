@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Ícone do Garimpo: a gema da marca em verde sobre fundo escuro. O desenho fica
+       dentro da zona segura (80%), então o mesmo arquivo serve para ícone recortável. -->
+  <rect width="512" height="512" fill="#111113"/>
+  <g transform="translate(118 122) scale(11.5)" fill="none" stroke="#58C48A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 4h12l3 5-9 11L3 9z"/>
+    <path d="M3 9h18"/>
+  </g>
+</svg>

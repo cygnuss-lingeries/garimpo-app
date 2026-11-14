@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Garimpo</title>
+<meta name="description" content="Mande o post, veja a ficha e decida: aprovar, recusar ou dúvida.">
+<meta name="theme-color" content="#F3F3F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F0F10" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Garimpo">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icones/icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icones/icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-gema" viewBox="0 0 24 24"><path d="M6 4h12l3 5-9 11L3 9z"/><path d="M3 9h18"/></symbol>
+  <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-esq" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-dir" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-duvida" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2 1-1.2 1.8M12 17h.01"/></symbol>
+  <symbol id="i-fora" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M11 7H6v11h11v-5"/></symbol>
+  <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4M12 17h.01"/></symbol>
+  <symbol id="i-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><rect x="4" y="7" width="11" height="10" rx="2"/><path d="M15 11l5-3v8l-5-3z"/></symbol>
+  <symbol id="i-escudo" viewBox="0 0 24 24"><path d="M12 4l7 3v5c0 4-3 6.7-7 8-4-1.3-7-4-7-8V7z"/></symbol>
+  <symbol id="i-seta" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-fala" viewBox="0 0 24 24"><path d="M5 9v6M9 6v12M13 8v8M17 10v4"/></symbol>
+  <symbol id="i-baixar" viewBox="0 0 24 24"><path d="M12 4v10M8 10l4 4 4-4M5 19h14"/></symbol>
+  <symbol id="i-elo" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-skill" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></symbol>
+  <symbol id="i-ferramenta" viewBox="0 0 24 24"><path d="M5 7h14M5 17h14"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></symbol>
+  <symbol id="i-prompt" viewBox="0 0 24 24"><path d="M5 6h14v9h-9l-4 3v-3H5z"/></symbol>
+  <symbol id="i-dica" viewBox="0 0 24 24"><path d="M9 17h6M10 20h4M8 13a5 5 0 1 1 8 0c-.7.8-1 1.5-1 2.5H9c0-1-.3-1.7-1-2.5z"/></symbol>
+  <symbol id="i-inspiracao" viewBox="0 0 24 24"><path d="M12 4l2.4 5.2 5.6.7-4.1 3.9 1.1 5.6-5-2.8-5 2.8 1.1-5.6L4 9.9l5.6-.7z"/></symbol>
+  <symbol id="i-propaganda" viewBox="0 0 24 24"><path d="M4 10v4h3l6 4V6l-6 4H4zM17 9.5a3.5 3.5 0 0 1 0 5"/></symbol>
+  <symbol id="i-outro" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.5"/></symbol>
+  <symbol id="i-conta" viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5"/><path d="M5 19c1.2-3.2 3.8-5 7-5s5.8 1.8 7 5"/></symbol>
+  <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="9" y="9" width="10" height="10" rx="2"/><path d="M5 15V7a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-pc" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="11" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-celular" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></symbol>
+</svg>
+
+<div class="app">
+  <header class="topo">
+    <div class="marca">
+      <svg class="icone icone--g marca__gema" aria-hidden="true"><use href="#i-gema"></use></svg>
+      <span>Garimpo</span>
+    </div>
+    <div class="topo__acoes">
+      <span class="sinal" data-ref="sinal" hidden><span class="sinal__ponto"></span><span data-ref="sinal-texto"></span></span>
+      <button class="botao-icone conta" type="button" data-ref="abrir-conta" aria-label="Conta e aparelhos" hidden>
+        <svg class="icone" aria-hidden="true"><use href="#i-conta"></use></svg>
+      </button>
+      <button class="botao" type="button" data-ref="abrir-colar" hidden>
+        <svg class="icone" aria-hidden="true"><use href="#i-mais"></use></svg>
+        <span>Colar link</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="entrada" data-ref="entrada" aria-labelledby="entrada-titulo" hidden>
+    <form class="folha__forma entrada__forma" data-ref="forma-entrar">
+      <h1 class="folha__titulo" id="entrada-titulo" data-ref="entrada-titulo">Entrar no Garimpo</h1>
+      <label class="campo">
+        <span class="campo__rotulo">E-mail</span>
+        <input class="campo__texto" id="email" data-ref="email" type="email" inputmode="email" autocomplete="username" required>
+      </label>
+      <label class="campo">
+        <span class="campo__rotulo">Senha (8 caracteres ou mais)</span>
+        <input class="campo__texto" id="senha" data-ref="senha" type="password" autocomplete="current-password" minlength="8" required>
+      </label>
+      <p class="decisao__erro" data-ref="erro-entrar" role="alert" hidden></p>
+      <div class="folha__botoes">
+        <button class="botao" type="button" data-ref="trocar-entrada">Criar meu acesso</button>
+        <button class="botao botao--primario" type="submit" data-ref="botao-entrar">Entrar</button>
+      </div>
+    </form>
+  </section>
+
+  <nav class="abas" aria-label="Situação dos posts" data-ref="abas"></nav>
+  <section class="resumo" data-ref="resumo" aria-label="Resumo dos pendentes" hidden></section>
+  <main class="lista" data-ref="lista"></main>
+
+  <section class="zoom" data-ref="zoom" aria-label="Detalhe do post" hidden>
+    <div class="zoom__barra">
+      <button class="botao-icone so-celular" type="button" data-ref="voltar" aria-label="Voltar para a lista">
+        <svg class="icone" aria-hidden="true"><use href="#i-esq"></use></svg>
+      </button>
+      <div class="zoom__passos">
+        <button class="seta" type="button" data-ref="anterior" aria-label="Post anterior">
+          <svg class="icone" aria-hidden="true"><use href="#i-esq"></use></svg>
+        </button>
+        <span data-ref="posicao"></span>
+        <button class="seta" type="button" data-ref="proximo" aria-label="Próximo post">
+          <svg class="icone" aria-hidden="true"><use href="#i-dir"></use></svg>
+        </button>
+      </div>
+    </div>
+    <div class="zoom__corpo" data-ref="corpo"></div>
+    <form class="decisao" data-ref="decisao" hidden>
+      <label class="campo">
+        <span class="campo__rotulo">Comentário (opcional)</span>
+        <textarea class="campo__texto" id="comentario" data-ref="comentario" rows="1" maxlength="500"></textarea>
+      </label>
+      <div class="decisao__botoes">
+        <button class="botao botao--justo" type="button" data-decisao="duvida">
+          <svg class="icone" aria-hidden="true"><use href="#i-duvida"></use></svg><span>Dúvida</span>
+        </button>
+        <button class="botao botao--justo" type="button" data-decisao="recusado">
+          <svg class="icone" aria-hidden="true"><use href="#i-x"></use></svg><span>Recusar</span>
+        </button>
+        <button class="botao botao--justo botao--primario" type="button" data-decisao="aprovado">
+          <svg class="icone" aria-hidden="true"><use href="#i-check"></use></svg><span>Aprovar</span>
+        </button>
+      </div>
+      <p class="decisao__erro" data-ref="erro-decisao" role="alert" hidden></p>
+    </form>
+  </section>
+</div>
+
+<dialog class="folha" data-ref="folha" aria-labelledby="folha-titulo">
+  <form class="folha__forma" method="dialog" data-ref="forma-colar">
+    <h2 class="folha__titulo" id="folha-titulo">Colar um link</h2>
+    <label class="campo">
+      <span class="campo__rotulo">Link do post (Instagram ou TikTok)</span>
+      <input class="campo__texto" id="link" data-ref="link" type="url" inputmode="url" autocomplete="off" required>
+    </label>
+    <p class="decisao__erro" data-ref="erro-colar" role="alert" hidden></p>
+    <div class="folha__botoes">
+      <button class="botao" type="button" data-ref="fechar-colar">Cancelar</button>
+      <button class="botao botao--primario" type="submit">Garimpar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="folha" data-ref="conta" aria-labelledby="conta-titulo">
+  <div class="folha__forma">
+    <h2 class="folha__titulo" id="conta-titulo">Conta e aparelhos</h2>
+    <div class="linhas" data-ref="conta-linhas"></div>
+    <div class="folha__botoes folha__botoes--inicio">
+      <button class="botao botao--justo" type="button" data-ligar="garimpeiro">
+        <svg class="icone" aria-hidden="true"><use href="#i-pc"></use></svg><span>Ligar um PC</span>
+      </button>
+      <button class="botao botao--justo" type="button" data-ligar="atalho">
+        <svg class="icone" aria-hidden="true"><use href="#i-celular"></use></svg><span>Ligar um iPhone</span>
+      </button>
+    </div>
+    <div class="folha__forma" data-ref="chave" hidden>
+      <label class="campo">
+        <span class="campo__rotulo">Chave do aparelho. Aparece só agora: copie e cole no aparelho.</span>
+        <input class="campo__texto" id="chave" data-ref="chave-texto" readonly>
+      </label>
+      <div class="folha__botoes folha__botoes--inicio">
+        <button class="botao botao--justo" type="button" data-ref="copiar-chave">
+          <svg class="icone" aria-hidden="true"><use href="#i-copiar"></use></svg><span aria-live="polite">Copiar chave</span>
+        </button>
+      </div>
+    </div>
+    <p class="decisao__erro" data-ref="erro-conta" role="alert" hidden></p>
+    <div class="folha__botoes folha__botoes--pontas">
+      <button class="botao" type="button" data-ref="sair">Sair da conta</button>
+      <button class="botao" type="button" data-ref="fechar-conta">Fechar</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.75.0/dist/umd/supabase.js"></script>
+<script src="dados.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
