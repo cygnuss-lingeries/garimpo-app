@@ -182,7 +182,8 @@ body::before {
   padding: 0 var(--e-4);
   border: 1px solid transparent;
   border-radius: var(--raio-pilula);
-  background: var(--superficie);
+  /* Como o campo: branco sobre o fundo da página, cor do fundo dentro de cartão ou janela. */
+  background: var(--campo, var(--superficie));
   color: var(--tinta);
   font: var(--p-titulo) var(--t-14) / 1 var(--familia);
   white-space: nowrap;
