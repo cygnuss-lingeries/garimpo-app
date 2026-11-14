@@ -603,24 +603,59 @@
     return s;
   }
 
+  // A janela guarda o que leu da nuvem e se redesenha sem buscar de novo a cada toque.
+  const conta = { sessao: null, sinal: { texto: '' }, lista: [], salvos: null };
+  let focoDepois = null;
+
   async function pintarConta() {
-    const aviso = ref('erro-conta');
+    const erro = ref('erro-conta');
     try {
-      const [sessao, sinal, lista] = await Promise.all([dados.sessao(), pintarSinal(), dados.aparelhos()]);
-      ref('conta-linhas').replaceChildren(...[
-        linha('conta', 'Você', sessao?.email || ''),
-        linha('relogio', 'Garimpeiro', sinal.texto),
-        ...lista.map((a) => linha(a.tipo === 'garimpeiro' ? 'pc' : 'celular', a.nome, a.visto)),
-        lista.length === 0 && linha('pc', 'Nenhum aparelho ligado', 'Ligue o PC para ele começar a analisar.'),
-      ].filter(Boolean));
-    } catch (erro) {
-      aviso.textContent = erro.message;
-      aviso.hidden = false;
+      const [sessao, sinal, lista, situacao, salvos] = await Promise.all([dados.sessao(), pintarSinal(), dados.aparelhos(),
+        situacaoDoAviso().catch(() => ({ pode: false, ligado: false, texto: 'Não deu para ver o aviso agora.' })),
+        dados.situacaoImportacao ? dados.situacaoImportacao().catch(() => null) : null]);
+      Object.assign(conta, { sessao, sinal, lista, salvos });
+      avisoAqui = situacao;
+      desenharConta();
+    } catch (falha) {
+      erro.textContent = falha.message;
+      erro.hidden = false;
     }
+  }
+
+  function desenharConta() {
+    ref('conta-linhas').replaceChildren(...[
+      linha('conta', 'Você', conta.sessao?.email || ''),
+      linha('relogio', 'Garimpeiro', conta.sinal.texto),
+      ...conta.lista.map((a) => linha(a.tipo === 'garimpeiro' ? 'pc' : 'celular', a.nome, a.visto)),
+      conta.lista.length === 0 && linha('pc', 'Nenhum aparelho ligado', 'Ligue o PC para ele começar a analisar.'),
+      linhaDoAviso(),
+      linhaDosSalvos(),
+    ].filter(Boolean));
+    // O botão tocado é trocado ao redesenhar: o foco volta para o novo.
+    if (focoDepois) ref('conta-linhas').querySelector('[data-acao="' + focoDepois + '"]')?.focus();
+    focoDepois = null;
+  }
+
+  // Botão de ação dentro de uma linha da janela (ligar aviso, importar salvos).
+  function botaoDaConta(nome, nomeIcone, texto, aoTocar, primario, rotuloLongo) {
+    return h('button', {
+      class: 'botao botao--justo' + (primario ? ' botao--primario' : ''), type: 'button', 'data-acao': nome, 'aria-label': rotuloLongo || null,
+      onclick: (e) => { focoDepois = nome; aoTocar(e.currentTarget); },
+    }, icone(nomeIcone), h('span', { text: texto }));
+  }
+
+  const acoes = (...botoes) => h('div', { class: 'linha__acoes' }, botoes);
+
+  function mostrarErroDaConta(falha, reserva) {
+    const texto = String((falha && falha.message) || '');
+    // Erro técnico do navegador vem em inglês: não vai para a tela.
+    ref('erro-conta').textContent = /[áàâãéêíóôõúç]/i.test(texto) ? texto : reserva;
+    ref('erro-conta').hidden = false;
   }
 
   async function abrirConta() {
     ref('erro-conta').hidden = true;
+    importacao = null;
     ref('chave').hidden = true;
     ref('chave-texto').value = '';
     ref('copiar-chave').querySelector('span').textContent = 'Copiar chave';
@@ -687,6 +722,197 @@
     renderTudo();
   }
 
+  // ───────── aviso no celular ─────────
+  // O aparelho se inscreve no serviço de aviso do próprio navegador (Google, Apple, Microsoft) com a
+  // chave pública do Garimpo. Quando a ficha fica pronta, o servidor manda o aviso cifrado para ele.
+
+  const IPHONE = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const MARCA_DO_AVISO = 'garimpo';
+  const ITEM_VALIDO = /^[0-9a-f-]{36}$/;
+  let avisoAqui = { pode: false, ligado: false, texto: '' };
+
+  const avisoPossivel = () => dados.modo === 'nuvem' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+  function bytesDe(b64) {
+    const base = b64.replace(/-/g, '+').replace(/_/g, '/');
+    return Uint8Array.from(atob(base + '='.repeat((4 - (base.length % 4)) % 4)), (c) => c.charCodeAt(0));
+  }
+
+  const iguais = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+  // Se o sw.js não registrou (navegador sem suporte), não espera para sempre.
+  function registro() {
+    return Promise.race([navigator.serviceWorker.ready,
+      new Promise((_, falhou) => setTimeout(() => falhou(new Error('O aviso não carregou. Abra o app de novo.')), 5000))]);
+  }
+
+  async function situacaoDoAviso() {
+    if (!avisoPossivel()) {
+      return { pode: false, ligado: false, texto: IPHONE ? 'No iPhone, instale o app na tela de início para ter aviso.' : 'Este navegador não manda aviso.' };
+    }
+    if (Notification.permission === 'denied') return { pode: false, ligado: false, texto: 'Bloqueado. Libere o aviso nas configurações do site.' };
+    const inscricao = await (await registro()).pushManager.getSubscription();
+    const ligado = Boolean(inscricao) && Notification.permission === 'granted' && await dados.avisoLigado(inscricao.endpoint);
+    return { pode: true, ligado, texto: ligado ? 'Ligado. Avisa quando a ficha fica pronta.' : 'Desligado. Ligue para saber da ficha pronta.' };
+  }
+
+  function linhaDoAviso() {
+    return linha('sino', 'Aviso neste aparelho', avisoAqui.texto,
+      avisoAqui.pode && acoes(botaoDaConta('aviso', 'sino', avisoAqui.ligado ? 'Desligar aviso' : 'Ligar aviso', alternarAviso)));
+  }
+
+  async function alternarAviso(botao) {
+    const ligar = !avisoAqui.ligado;
+    ref('erro-conta').hidden = true;
+    botao.disabled = true;
+    botao.querySelector('span').textContent = ligar ? 'Ligando...' : 'Desligando...';
+    try {
+      // A permissão é pedida primeiro, ainda dentro do toque: o iPhone exige.
+      if (ligar && (await Notification.requestPermission()) !== 'granted') {
+        throw new Error('Sem permissão. Toque em Permitir quando o navegador perguntar.');
+      }
+      const reg = await registro();
+      let inscricao = await reg.pushManager.getSubscription();
+      if (!ligar) {
+        if (inscricao) {
+          await dados.desligarAviso(inscricao.endpoint);
+          await inscricao.unsubscribe();
+        }
+      } else {
+        const chave = bytesDe(await dados.avisoChave());
+        const antiga = inscricao && inscricao.options.applicationServerKey;
+        if (inscricao && (!antiga || !iguais(new Uint8Array(antiga), chave))) {
+          await inscricao.unsubscribe();
+          inscricao = null;
+        }
+        if (!inscricao) inscricao = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chave });
+        const j = inscricao.toJSON();
+        await dados.ligarAviso(j.endpoint, j.keys.p256dh, j.keys.auth);
+        await dados.testarAviso(j.endpoint);
+      }
+    } catch (falha) {
+      mostrarErroDaConta(falha, 'O aviso não ligou neste navegador. Tente de novo.');
+    }
+    await pintarConta();
+  }
+
+  // Abrir o app já conta como ter visto: os avisos que estavam na tela somem.
+  function limparAvisos() {
+    if (!avisoPossivel() || document.hidden) return;
+    navigator.serviceWorker.getRegistration()
+      .then((r) => (r ? r.getNotifications({ tag: MARCA_DO_AVISO }) : []))
+      .then((lista) => lista.forEach((n) => n.close()))
+      .catch(() => {});
+  }
+
+  // Tocar no aviso abre o post certo, na aba em que ele está.
+  async function abrirDoAviso(id) {
+    if (!ITEM_VALIDO.test(id)) return;
+    if (!estado.itens.some((i) => i.id === id)) {
+      try { estado.itens = await dados.listar(); } catch (erro) { return; }
+    }
+    const item = estado.itens.find((i) => i.id === id);
+    const aba = item && ABAS.find((a) => a.tem(item.status));
+    if (!aba) return;
+    if (estado.aba !== aba.id) trocarAba(aba.id);
+    else { montarSequencia(); renderTudo(); }
+    abrir(id);
+  }
+
+  // ───────── salvos antigos ─────────
+  // O dono pede o arquivo de dados ao Instagram ou ao TikTok e escolhe aqui. O app lê no próprio
+  // aparelho (importar.js), mostra quantos achou e só põe na fila depois do "Colocar na fila".
+
+  const AJUDA_INSTAGRAM = 'https://help.instagram.com/181231772500920';
+  const AJUDA_TIKTOK = 'https://support.tiktok.com/pt_BR/account-and-privacy/personalized-ads-and-data/requesting-your-data';
+  let importacao = null; // { fase: 'lendo' | 'achou' | 'colocando' | 'feito', achou, resultado }
+  const conta1 = (n, um, varios) => n + ' ' + (n === 1 ? um : varios);
+
+  function linhaDosSalvos() {
+    if (!dados.importar) return null;
+    const s = conta.salvos || { na_fila: 0, prontos: 0, perdidos: 0, por_dia: 20 };
+    const fase = importacao && importacao.fase;
+    if (fase === 'achou' || fase === 'colocando') {
+      const a = importacao.achou;
+      const partes = [a.instagram && a.instagram + ' do Instagram', a.tiktok && a.tiktok + ' do TikTok'].filter(Boolean).join(' e ');
+      return linha('baixar', 'Achei ' + conta1(a.itens.length, 'post salvo', 'posts salvos'), partes + '. O PC analisa ' + s.por_dia + ' por dia.',
+        acoes(botaoDaConta('cancelar-importar', 'x', 'Cancelar', cancelarImportar),
+          botaoDaConta('colocar-na-fila', 'check', fase === 'colocando' ? 'Colocando...' : 'Colocar na fila', colocarNaFila, true)));
+    }
+    let texto;
+    if (fase === 'feito') {
+      const r = importacao.resultado;
+      texto = [conta1(r.novos, 'novo na fila.', 'novos na fila.'), r.repetidos && conta1(r.repetidos, 'já estava no Garimpo.', 'já estavam no Garimpo.')].filter(Boolean).join(' ');
+    } else if (s.na_fila > 0) texto = s.na_fila + ' na fila. O PC analisa ' + s.por_dia + ' por dia.';
+    else if (s.prontos + s.perdidos > 0) texto = conta1(s.prontos, 'analisado', 'analisados') + (s.perdidos ? '; ' + s.perdidos + ' não deu para baixar.' : '.');
+    const ajuda = (url, nome) => { const a = elo(url, nome); a.setAttribute('aria-label', 'Como pedir o arquivo ao ' + nome + ' (abre em nova aba)'); return a; };
+    const ensina = !texto && ['Peça o arquivo ao ', ajuda(AJUDA_INSTAGRAM, 'Instagram'), ' ou ao ', ajuda(AJUDA_TIKTOK, 'TikTok'), ' e escolha aqui.'];
+    return linha('baixar', 'Salvos antigos', ...(texto ? [texto] : ensina),
+      acoes(botaoDaConta('importar', 'baixar', fase === 'lendo' ? 'Lendo arquivo...' : 'Importar salvos', escolherArquivo),
+        s.na_fila > 0 && fase !== 'feito' && botaoDaConta('parar-importar', 'x', 'Parar fila', pararImportacao, false, 'Parar fila de importação dos salvos antigos')));
+  }
+
+  function escolherArquivo() {
+    if (importacao && importacao.fase === 'lendo') return;
+    ref('arquivo-salvos').click();
+  }
+
+  async function lerSalvos() {
+    const campo = ref('arquivo-salvos');
+    const arquivos = [...campo.files];
+    campo.value = '';
+    if (arquivos.length === 0) return;
+    ref('erro-conta').hidden = true;
+    importacao = { fase: 'lendo' };
+    focoDepois = 'importar';
+    desenharConta();
+    try {
+      const achou = await window.GarimpoImportar.ler(arquivos);
+      if (achou.itens.length === 0) throw new Error('Não achei posts salvos neste arquivo. Escolha o .zip do Instagram ou do TikTok.');
+      importacao = { fase: 'achou', achou };
+      focoDepois = 'colocar-na-fila';
+    } catch (falha) {
+      importacao = null;
+      focoDepois = 'importar';
+      mostrarErroDaConta(falha, 'Não consegui ler este arquivo. Escolha o .zip que o Instagram ou o TikTok mandou.');
+    }
+    desenharConta();
+  }
+
+  function cancelarImportar() {
+    importacao = null;
+    focoDepois = 'importar';
+    desenharConta();
+  }
+
+  async function colocarNaFila() {
+    if (!importacao || importacao.fase !== 'achou') return;
+    ref('erro-conta').hidden = true;
+    importacao.fase = 'colocando';
+    desenharConta();
+    try {
+      importacao = { fase: 'feito', resultado: await dados.importar(importacao.achou.itens) };
+    } catch (falha) {
+      importacao.fase = 'achou';
+      mostrarErroDaConta(falha, 'Não deu para colocar na fila. Confira a internet e tente de novo.');
+    }
+    focoDepois = 'importar';
+    await pintarConta();
+  }
+
+  async function pararImportacao(botao) {
+    ref('erro-conta').hidden = true;
+    botao.disabled = true;
+    try {
+      await dados.pararImportacao();
+      importacao = null;
+    } catch (falha) {
+      mostrarErroDaConta(falha, 'Não deu para parar agora. Tente de novo.');
+    }
+    focoDepois = 'importar';
+    await pintarConta();
+  }
+
   // ───────── o que chegou pelo Compartilhar do celular ─────────
   // O sw.js guarda o link e as mídias no próprio aparelho; aqui, com o dono já dentro,
   // eles vão para a caixa de entrada. Sem login, ficam guardados até ele entrar.
@@ -739,6 +965,12 @@
     pintarSinal().catch(() => {});
     await receberCompartilhado().catch(() => {});
     await carregar();
+    limparAvisos();
+    const pedido = new URLSearchParams(location.search).get('abrir');
+    if (pedido) {
+      history.replaceState(null, '', location.pathname + location.hash);
+      await abrirDoAviso(pedido);
+    }
   }
 
   ref('forma-entrar').addEventListener('submit', enviarEntrada);
@@ -750,11 +982,19 @@
   for (const botao of ref('conta').querySelectorAll('[data-ligar]')) {
     botao.addEventListener('click', () => ligar(botao.dataset.ligar, botao));
   }
+  ref('arquivo-salvos').addEventListener('change', lerSalvos);
   document.addEventListener('visibilitychange', atualizarEmSilencio);
+  document.addEventListener('visibilitychange', limparAvisos);
 
   // O sw.js é quem atende o Compartilhar do Android; só existe no app de verdade.
   if (dados.modo === 'nuvem' && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // Recados do sw.js: chegou aviso (a lista se atualiza) ou tocaram no aviso (abre o post).
+    navigator.serviceWorker.addEventListener('message', (evento) => {
+      const recado = evento.data || {};
+      if (recado.tipo === 'novidade') atualizarEmSilencio();
+      if (recado.tipo === 'abrir') abrirDoAviso(String(recado.item || ''));
+    });
   }
 
   iniciar();

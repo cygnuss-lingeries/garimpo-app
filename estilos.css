@@ -973,6 +973,14 @@ body::before {
   overflow-wrap: anywhere;
 }
 
+/* Ações dentro de uma linha (ligar aviso, importar salvos), logo abaixo do texto dela. */
+.linha__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  margin-top: var(--e-2);
+}
+
 .linha--alerta {
   padding: var(--e-3);
   border-radius: var(--raio);

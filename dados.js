@@ -5,6 +5,8 @@
 //   capturar(texto)                                → manda um link para a fila
 //   sinal()                                        → situação do garimpeiro (texto curto)
 //   aparelhos() / ligarAparelho() / desligarAparelho()
+//   avisoChave() / ligarAviso() / desligarAviso() / testarAviso() / avisoLigado()   → aviso no celular (só nuvem)
+//   importar(itens) / situacaoImportacao() / pararImportacao()                     → Salvos antigos (só nuvem)
 // Dois modos: "nuvem" (Supabase, o de verdade) e "demo" (fichas de exemplo, decisões no navegador).
 window.GarimpoDados = (function () {
   'use strict';
@@ -96,6 +98,15 @@ window.GarimpoDados = (function () {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
     });
 
+    // A função "avisos" responde o erro em português no corpo; é ele que vai para a tela.
+    async function chamarAvisos(corpo) {
+      const r = await banco.functions.invoke('avisos', { body: corpo });
+      if (!r.error) return r.data;
+      let texto = '';
+      try { texto = (await r.error.context.json()).erro || ''; } catch (erro) { texto = ''; }
+      throw traduzir(new Error(texto || r.error.message));
+    }
+
     return {
       modo: 'nuvem',
 
@@ -132,7 +143,10 @@ window.GarimpoDados = (function () {
       async listar() {
         const r = await banco.from('itens')
           .select('id, origem, url, status, criado_em, decidido_em, comentario, erro, analise, transcricao, midias, post, resposta, arquivado_em, instalacao')
-          .neq('status', 'duplicado').order('criado_em', { ascending: false }).limit(300);
+          .neq('status', 'duplicado')
+          // Salvo antigo importado só aparece quando já tem ficha (ou decisão): a fila dele pode ter centenas.
+          .or('importado.eq.false,status.in.(pronto,aprovado,recusado,duvida,instalando,instalado,erro_instalacao,desfeito)')
+          .order('criado_em', { ascending: false }).limit(300);
         if (r.error) throw traduzir(r.error);
 
         // As mídias são privadas: o app pede um endereço temporário para cada uma.
@@ -209,6 +223,54 @@ window.GarimpoDados = (function () {
       async desligarAparelho(id) {
         const r = await banco.rpc('revogar_aparelho', { p_id: id });
         if (r.error) throw traduzir(r.error);
+      },
+
+      /** Chave pública do Garimpo, para o aparelho se inscrever no serviço de aviso do navegador. */
+      async avisoChave() {
+        return (await chamarAvisos({ acao: 'chave' })).publica;
+      },
+
+      async ligarAviso(endpoint, p256dh, auth) {
+        const r = await banco.rpc('ligar_aviso', { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth });
+        if (r.error) throw traduzir(r.error);
+      },
+
+      async desligarAviso(endpoint) {
+        const r = await banco.rpc('desligar_aviso', { p_endpoint: endpoint });
+        if (r.error) throw traduzir(r.error);
+      },
+
+      async testarAviso(endpoint) {
+        await chamarAvisos({ acao: 'testar', endpoint: endpoint });
+      },
+
+      /** Põe na fila os links achados no arquivo de dados. Vai em lotes de 1000. */
+      async importar(itens) {
+        const total = { novos: 0, repetidos: 0, ignorados: 0 };
+        for (let i = 0; i < itens.length; i += 1000) {
+          const r = await banco.rpc('importar', { p_itens: itens.slice(i, i + 1000) });
+          if (r.error) throw traduzir(r.error);
+          for (const chave of Object.keys(total)) total[chave] += r.data[chave] || 0;
+        }
+        return total;
+      },
+
+      async situacaoImportacao() {
+        const r = await banco.rpc('situacao_importacao');
+        if (r.error) throw traduzir(r.error);
+        return r.data;
+      },
+
+      async pararImportacao() {
+        const r = await banco.rpc('parar_importacao');
+        if (r.error) throw traduzir(r.error);
+        return r.data;
+      },
+
+      async avisoLigado(endpoint) {
+        const r = await banco.from('avisos').select('id').eq('endpoint', endpoint).maybeSingle();
+        if (r.error) throw traduzir(r.error);
+        return Boolean(r.data);
       },
     };
   }

@@ -29,6 +29,7 @@
   <symbol id="i-fora" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M11 7H6v11h11v-5"/></symbol>
   <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4M12 17h.01"/></symbol>
   <symbol id="i-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-sino" viewBox="0 0 24 24"><path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
   <symbol id="i-camera" viewBox="0 0 24 24"><rect x="4" y="7" width="11" height="10" rx="2"/><path d="M15 11l5-3v8l-5-3z"/></symbol>
   <symbol id="i-escudo" viewBox="0 0 24 24"><path d="M12 4l7 3v5c0 4-3 6.7-7 8-4-1.3-7-4-7-8V7z"/></symbol>
   <symbol id="i-seta" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
@@ -145,6 +146,7 @@
   <div class="folha__forma">
     <h2 class="folha__titulo" id="conta-titulo">Conta e aparelhos</h2>
     <div class="linhas" data-ref="conta-linhas"></div>
+    <input type="file" data-ref="arquivo-salvos" accept=".zip,.json,.html,.txt,application/zip,application/json" multiple hidden>
     <div class="folha__botoes folha__botoes--inicio">
       <button class="botao botao--justo" type="button" data-ligar="garimpeiro">
         <svg class="icone" aria-hidden="true"><use href="#i-pc"></use></svg><span>Ligar um PC</span>
@@ -175,6 +177,7 @@
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.75.0/dist/umd/supabase.js"></script>
 <script src="dados.js"></script>
+<script src="importar.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
