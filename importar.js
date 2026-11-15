@@ -5,7 +5,8 @@
 //   GarimpoImportar.ler(arquivos) → { itens: [{ url, salvo_em }], instagram, tiktok }
 //
 // Aceita o .zip inteiro (lido aos pedaços, sem carregar tudo na memória) ou o .json/.html solto.
-window.GarimpoImportar = (function () {
+// O mesmo leitor roda no PC (garimpeiro/etapas/drive.mjs), para a exportação diária no Google Drive.
+(typeof window !== 'undefined' ? window : globalThis).GarimpoImportar = (function () {
   'use strict';
 
   const LIMITE = 100 * 1024 * 1024;
