@@ -1793,19 +1793,6 @@ img.av-card__img {
 
 /* ───────── na prática (pedido do Guifa em 16/11/2026: exemplo com um arquivo dele, só quando ele pede) ───────── */
 
-/* Rótulo Antes / Depois no canto de cada slide. */
-.midia__slide {
-  position: relative;
-}
-
-.midia__rotulo {
-  position: absolute;
-  top: var(--e-3);
-  left: var(--e-3);
-  background: var(--veu);
-  color: var(--sobre-veu);
-}
-
 /* Na ficha: o exemplo pronto vira um cartão que abre os slides. */
 .pratica-abre {
   display: grid;
@@ -1864,22 +1851,121 @@ img.av-card__img {
   font-size: var(--t-12);
 }
 
-/* Tela cheia com os slides de antes e depois. */
+/* Visor do exemplo: só o resultado sobre o palco escuro, setas, X e tela cheia. Nada rola. */
+.sem-rolagem,
+.sem-rolagem body {
+  overflow: hidden;
+}
+
 .pratica {
-  --altura-midia: 66vh;
   position: fixed;
   inset: 0;
   z-index: 30;
-  overflow-y: auto;
-  background: var(--fundo);
+  overflow: hidden;
+  background: var(--palco);
+  touch-action: pan-y pinch-zoom;
 }
 
-.pratica__caixa {
+.pratica__palco {
+  position: absolute;
+  inset: 0;
   display: grid;
-  gap: var(--e-3);
-  max-width: 720px;
-  margin-inline: auto;
-  padding: env(safe-area-inset-top, 0px) var(--margem-dir) calc(var(--e-5) + env(safe-area-inset-bottom, 0px)) var(--margem);
+  /* Linha e coluna com tamanho fixo: assim o max-height: 100% da peça vale e ela nunca passa da tela. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  padding: calc(64px + env(safe-area-inset-top, 0px)) var(--margem-dir) calc(72px + env(safe-area-inset-bottom, 0px)) var(--margem);
+}
+
+.pratica__peca {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--raio);
+  object-fit: contain;
+  user-select: none;
+}
+
+.pratica--cheia .pratica__palco {
+  padding: 0;
+}
+
+.pratica--cheia .pratica__peca {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.pratica__seta {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  background: var(--veu);
+  color: var(--sobre-veu);
+  transform: translateY(-50%);
+}
+
+.pratica__seta--anterior {
+  left: max(var(--e-3), env(safe-area-inset-left, 0px));
+}
+
+.pratica__seta--proxima {
+  right: max(var(--e-3), env(safe-area-inset-right, 0px));
+}
+
+/* O aperto encolhe a seta sem perder o centro na altura (o .seta:active sozinho apagaria o translateY). */
+.pratica__seta:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+/* No computador as setas ficam nas laterais: o palco reserva a faixa delas para não cobrir a imagem (#296). */
+@media (min-width: 1000px) {
+  .pratica__palco {
+    padding-inline: calc(72px + env(safe-area-inset-left, 0px)) calc(72px + env(safe-area-inset-right, 0px));
+  }
+}
+
+/* No celular a imagem ocupa a largura toda: as setas descem para baixo dela, para não cobrir nada (#296). */
+@media (max-width: 999px) {
+  .pratica__seta {
+    top: auto;
+    bottom: calc(var(--e-3) + env(safe-area-inset-bottom, 0px));
+    transform: none;
+  }
+
+  .pratica__seta:active {
+    transform: scale(0.94);
+  }
+
+  .pratica__seta--anterior {
+    left: calc(50% - 52px);
+  }
+
+  .pratica__seta--proxima {
+    right: auto;
+    left: calc(50% + 8px);
+  }
+}
+
+.pratica__fechar,
+.pratica__cheia {
+  position: absolute;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  background: var(--veu);
+  color: var(--sobre-veu);
+}
+
+.pratica__fechar {
+  top: calc(var(--e-3) + env(safe-area-inset-top, 0px));
+  right: max(var(--e-3), env(safe-area-inset-right, 0px));
+}
+
+.pratica__cheia {
+  right: max(var(--e-3), env(safe-area-inset-right, 0px));
+  bottom: calc(var(--e-3) + env(safe-area-inset-bottom, 0px));
 }
 
 @media (prefers-reduced-motion: reduce) {

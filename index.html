@@ -50,6 +50,7 @@
   <symbol id="i-microfone" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
   <symbol id="i-desfazer" viewBox="0 0 24 24"><path d="M9 7H4V2"/><path d="M4.5 7A8 8 0 1 1 4 13"/></symbol>
   <symbol id="i-cartas" viewBox="0 0 24 24"><rect x="7" y="4" width="12" height="16" rx="2"/><path d="M4 7v11a2 2 0 0 0 2 2h1"/></symbol>
+  <symbol id="i-expandir" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
   <symbol id="i-celular" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></symbol>
 </svg>
 
@@ -178,20 +179,20 @@
 </section>
 
 <section class="pratica" data-ref="pratica" aria-label="Na prática" hidden>
-  <div class="pratica__caixa">
-    <header class="av-topo">
-      <button class="botao-icone" type="button" data-ref="pratica-fechar" aria-label="Fechar o exemplo">
-        <svg class="icone" aria-hidden="true"><use href="#i-esq"></use></svg>
-      </button>
-      <div class="av-topo__meio">
-        <strong class="av-topo__titulo" data-ref="pratica-titulo"></strong>
-        <span class="av-topo__conta" data-ref="pratica-arquivo"></span>
-      </div>
-      <span class="av-topo__vao" aria-hidden="true"></span>
-    </header>
-    <div class="pratica__midia" data-ref="pratica-midia"></div>
-    <ul class="itens itens--motivos" data-ref="pratica-explicacao"></ul>
-  </div>
+  <div class="pratica__palco" data-ref="pratica-palco"></div>
+  <button class="seta pratica__seta pratica__seta--anterior" type="button" data-ref="pratica-anterior" aria-label="Exemplo anterior">
+    <svg class="icone" aria-hidden="true"><use href="#i-esq"></use></svg>
+  </button>
+  <button class="seta pratica__seta pratica__seta--proxima" type="button" data-ref="pratica-proxima" aria-label="Próximo exemplo">
+    <svg class="icone" aria-hidden="true"><use href="#i-dir"></use></svg>
+  </button>
+  <button class="botao-icone pratica__fechar" type="button" data-ref="pratica-fechar" aria-label="Fechar">
+    <svg class="icone" aria-hidden="true"><use href="#i-x"></use></svg>
+  </button>
+  <button class="botao-icone pratica__cheia" type="button" data-ref="pratica-cheia" aria-label="Tela cheia">
+    <svg class="icone" aria-hidden="true"><use href="#i-expandir"></use></svg>
+  </button>
+  <span class="so-leitor" role="status" data-ref="pratica-status"></span>
 </section>
 
 <dialog class="folha" data-ref="folha" aria-labelledby="folha-titulo">

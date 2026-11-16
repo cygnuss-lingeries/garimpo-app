@@ -233,8 +233,7 @@
     const trilho = h('div', { class: 'midia__trilho' }, slides.map((s, i) => h('div', { class: 'midia__slide' },
       s.tipo === 'video'
         ? h('video', { class: 'midia__peca', src: s.url, poster: s.capa, controls: true, playsinline: true, preload: 'metadata' })
-        : h('img', { class: 'midia__peca', src: s.url, alt: (s.rotulo || 'Imagem ' + (i + 1)) + ' do post', loading: i > 0 ? 'lazy' : null }),
-      s.rotulo && h('span', { class: 'pilula midia__rotulo', text: s.rotulo }))));
+        : h('img', { class: 'midia__peca', src: s.url, alt: 'Imagem ' + (i + 1) + ' do post', loading: i > 0 ? 'lazy' : null }))));
     const caixa = h('div', { class: 'midia' }, trilho);
     if (slides.length < 2) return caixa;
 
@@ -345,8 +344,6 @@
 
   // ───────── na prática (pedido do Guifa em 16/11/2026: só quando ele pede) ─────────
 
-  const LADOS = { antes: 'Antes', depois: 'Depois' };
-
   function blocoPratica(item) {
     const p = item.pratica;
     const caixa = h('div', { class: 'linhas', 'data-pratica': true, role: 'status' });
@@ -365,7 +362,7 @@
         h('span', { class: 'pratica-abre__texto' },
           h('span', { class: 'linha__rotulo', text: 'Na prática' }),
           h('strong', { text: p.titulo || 'Exemplo com um arquivo seu' }),
-          h('span', { class: 'pratica-abre__pe', text: 'Ver ' + (p.slides || []).length + ' slides' + (p.arquivo ? ' · ' + p.arquivo : '') })),
+          h('span', { class: 'pratica-abre__pe', text: 'Ver ' + (p.slides || []).length + ((p.slides || []).length === 1 ? ' exemplo' : ' exemplos') })),
         icone('dir')));
     }
     return caixa;
@@ -391,41 +388,95 @@
     }
   }
 
+  // Visor do exemplo (pedido do Guifa em 16/11/2026): só o resultado, setas, X e tela cheia; sem rolagem.
+  const visor = { slides: [], i: 0, x0: null, volta: null };
+
+  function pintarVisor() {
+    const s = visor.slides[visor.i];
+    const peca = s.tipo === 'video'
+      ? h('video', { class: 'pratica__peca', src: s.url, poster: s.capa, controls: true, playsinline: true, autoplay: true })
+      : h('img', { class: 'pratica__peca', src: s.url, alt: s.legenda || 'Exemplo ' + (visor.i + 1), draggable: 'false' });
+    ref('pratica-palco').querySelectorAll('video').forEach((v) => v.pause());
+    ref('pratica-palco').replaceChildren(peca);
+    const anterior = ref('pratica-anterior');
+    const proxima = ref('pratica-proxima');
+    anterior.hidden = visor.i <= 0;
+    proxima.hidden = visor.i >= visor.slides.length - 1;
+    // A seta da ponta some: se o foco estava nela, passa para a outra seta (ou o X) e não cai fora do visor.
+    if (document.activeElement === document.body || (document.activeElement && document.activeElement.hidden)) {
+      (!anterior.hidden ? anterior : !proxima.hidden ? proxima : ref('pratica-fechar')).focus({ preventScroll: true });
+    }
+    ref('pratica-status').textContent = 'Exemplo ' + (visor.i + 1) + ' de ' + visor.slides.length;
+  }
+
+  function moverVisor(delta) {
+    const i = visor.i + delta;
+    if (i < 0 || i >= visor.slides.length) return;
+    visor.i = i;
+    pintarVisor();
+  }
+
   function abrirPratica(item) {
     const p = item.pratica;
-    if (!p || p.estado !== 'pronta') return;
-    const slides = (p.slides || []).map((s) => ({ tipo: s.tipo, url: s.url, capa: p.capa, rotulo: LADOS[s.lado] || '' }));
-    if (slides.length === 0) return;
-    ref('pratica-titulo').textContent = p.titulo || 'Na prática';
-    ref('pratica-arquivo').textContent = p.arquivo ? 'Com ' + p.arquivo : '';
-    ref('pratica-midia').replaceChildren(midia({ midias: { slides } }) || '');
-    ref('pratica-explicacao').replaceChildren(...(p.explicacao || []).map((t) => h('li', { class: 'itens__item' }, icone('dir', 'icone--p'), h('span', { text: t }))));
-    // O que fica atrás (lista, zoom ou pilha) sai do alcance do teclado enquanto os slides estão abertos.
-    voltaDaPratica = document.activeElement;
+    if (!p || p.estado !== 'pronta' || !(p.slides || []).length) return;
+    visor.slides = p.slides;
+    visor.i = 0;
+    // O que fica atrás (lista, zoom ou pilha) sai do alcance do teclado e a página não rola.
+    visor.volta = document.activeElement;
     document.querySelector('.app').inert = true;
     ref('avaliar').inert = true;
+    document.documentElement.classList.add('sem-rolagem');
     ref('pratica').hidden = false;
+    pintarVisor();
     ref('pratica-fechar').focus({ preventScroll: true });
   }
 
-  let voltaDaPratica = null;
-
   function fecharPratica() {
-    ref('pratica').querySelectorAll('video').forEach((v) => v.pause());
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    ref('pratica-palco').querySelectorAll('video').forEach((v) => v.pause());
     ref('pratica').hidden = true;
-    ref('pratica-midia').replaceChildren();
+    ref('pratica-palco').replaceChildren();
+    document.documentElement.classList.remove('sem-rolagem');
     ref('avaliar').inert = false;
     if (ref('avaliar').hidden) document.querySelector('.app').inert = false;
-    if (voltaDaPratica && voltaDaPratica.isConnected) voltaDaPratica.focus({ preventScroll: true });
-    voltaDaPratica = null;
+    if (visor.volta && visor.volta.isConnected) visor.volta.focus({ preventScroll: true });
+    visor.volta = null;
+  }
+
+  function telaCheia() {
+    const caixa = ref('pratica');
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else if (caixa.requestFullscreen) caixa.requestFullscreen().catch(() => {});
   }
 
   ref('pratica-fechar').addEventListener('click', fecharPratica);
+  ref('pratica-anterior').addEventListener('click', () => moverVisor(-1));
+  ref('pratica-proxima').addEventListener('click', () => moverVisor(1));
+  ref('pratica-cheia').addEventListener('click', telaCheia);
+  ref('pratica-cheia').hidden = !document.fullscreenEnabled;
+  document.addEventListener('fullscreenchange', () => {
+    const cheia = document.fullscreenElement === ref('pratica');
+    ref('pratica').classList.toggle('pratica--cheia', cheia);
+    ref('pratica-cheia').setAttribute('aria-label', cheia ? 'Sair da tela cheia' : 'Tela cheia');
+  });
+  // Arrastar para o lado troca de exemplo (no vídeo, só fora dos controles dele).
+  ref('pratica-palco').addEventListener('pointerdown', (e) => { visor.x0 = e.target.tagName !== 'VIDEO' ? e.clientX : null; });
+  ref('pratica-palco').addEventListener('pointercancel', () => { visor.x0 = null; });
+  ref('pratica-palco').addEventListener('pointerup', (e) => {
+    if (visor.x0 === null) return;
+    const dx = e.clientX - visor.x0;
+    visor.x0 = null;
+    if (Math.abs(dx) > 50) moverVisor(dx < 0 ? 1 : -1);
+  });
   document.addEventListener('keydown', (e) => {
-    // Com o exemplo aberto, Esc fecha só ele e as setas não trocam o post que está atrás.
+    // Com o exemplo aberto, Esc fecha só ele e as setas trocam de exemplo (não o post que está atrás).
     if (ref('pratica').hidden || !/^(Escape|ArrowLeft|ArrowRight)$/.test(e.key)) return;
     e.stopImmediatePropagation();
-    if (e.key === 'Escape') fecharPratica();
+    if (e.key === 'Escape') { fecharPratica(); return; }
+    // Com o foco no vídeo, as setas avançam e voltam o próprio vídeo (o jeito dele); fora dele, trocam de exemplo.
+    if (e.target.tagName === 'VIDEO') return;
+    e.preventDefault();
+    moverVisor(e.key === 'ArrowRight' ? 1 : -1);
   }, true);
 
   function fichaDoTrabalho(item) {

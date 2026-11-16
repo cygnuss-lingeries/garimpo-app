@@ -174,7 +174,7 @@ window.GarimpoDados = (function () {
           for (const s of m.slides || []) if (s.caminho) caminhos.push(s.caminho);
           const p = item.pratica || {};
           if (p.capa) caminhos.push(p.capa);
-          for (const s of p.slides || []) if (s.caminho) caminhos.push(s.caminho);
+          for (const s of p.slides || []) { if (s.caminho) caminhos.push(s.caminho); if (s.capa) caminhos.push(s.capa); }
         }
         const enderecos = {};
         if (caminhos.length > 0) {
@@ -192,7 +192,7 @@ window.GarimpoDados = (function () {
             pratica: p && Object.assign({}, p, {
               capa: enderecos[p.capa] || null,
               slides: (p.slides || []).filter(function (s) { return enderecos[s.caminho]; })
-                .map(function (s) { return { tipo: s.tipo, lado: s.lado, url: enderecos[s.caminho] }; }),
+                .map(function (s) { return { tipo: s.tipo, url: enderecos[s.caminho], capa: enderecos[s.capa] || null, legenda: s.legenda || '' }; }),
             }),
             midias: {
               capa: capa,
