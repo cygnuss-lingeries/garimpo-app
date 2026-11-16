@@ -233,7 +233,8 @@
     const trilho = h('div', { class: 'midia__trilho' }, slides.map((s, i) => h('div', { class: 'midia__slide' },
       s.tipo === 'video'
         ? h('video', { class: 'midia__peca', src: s.url, poster: s.capa, controls: true, playsinline: true, preload: 'metadata' })
-        : h('img', { class: 'midia__peca', src: s.url, alt: 'Imagem ' + (i + 1) + ' do post', loading: i > 0 ? 'lazy' : null }))));
+        : h('img', { class: 'midia__peca', src: s.url, alt: (s.rotulo || 'Imagem ' + (i + 1)) + ' do post', loading: i > 0 ? 'lazy' : null }),
+      s.rotulo && h('span', { class: 'pilula midia__rotulo', text: s.rotulo }))));
     const caixa = h('div', { class: 'midia' }, trilho);
     if (slides.length < 2) return caixa;
 
@@ -315,6 +316,7 @@
       // O porquê vem logo abaixo do título: é o que decide, e precisa aparecer sem rolar.
       h('p', { class: 'ficha__porque', text: f.porque }),
       depoisDaDecisao(item),
+      blocoPratica(item),
       h('div', { class: 'placar' },
         h('div', { class: 'placar__nota' }, h('span', { class: 'placar__numero' }, icone('gema'), numero(f.nota)), 'de 10'),
         h('div', { class: 'barras' }, NOTAS.map(([chave, rotulo]) => h('div', { class: 'barra' },
@@ -340,6 +342,91 @@
         h('summary', { class: 'fala__abre' }, icone('fala'), 'O que foi falado', icone('dir', 'icone--p fala__gira')),
         h('p', { class: 'fala__texto', text: item.transcricao })));
   }
+
+  // ───────── na prática (pedido do Guifa em 16/11/2026: só quando ele pede) ─────────
+
+  const LADOS = { antes: 'Antes', depois: 'Depois' };
+
+  function blocoPratica(item) {
+    const p = item.pratica;
+    const caixa = h('div', { class: 'linhas', 'data-pratica': true, role: 'status' });
+    if (!p || (p.estado === 'erro' && !p.sem_exemplo)) {
+      caixa.append(linha(p ? 'alerta' : 'inspiracao', p ? 'Não deu o exemplo' : 'Na prática',
+        p ? (p.erro || 'Tente de novo.') : 'Veja a técnica aplicada num arquivo seu.',
+        h('div', { class: 'linha__acoes' }, h('button', { class: 'botao botao--justo', type: 'button', onclick: (e) => pedirPratica(item, e.currentTarget) },
+          icone('inspiracao'), h('span', { text: p ? 'Tentar de novo' : 'Mostrar na prática' })))));
+    } else if (p.estado === 'pedido' || p.estado === 'fazendo') {
+      caixa.append(linha('relogio', 'Na prática', p.estado === 'fazendo' ? 'O PC está montando o exemplo.' : 'O PC monta quando estiver ligado.'));
+    } else if (p.estado === 'erro') {
+      caixa.append(linha('outro', 'Sem exemplo na prática', p.erro || 'Este post não tem o que mostrar.'));
+    } else if (p.estado === 'pronta') {
+      caixa.append(h('button', { class: 'pratica-abre', type: 'button', onclick: () => abrirPratica(item) },
+        p.capa ? h('img', { class: 'pratica-abre__capa', src: p.capa, alt: '' }) : h('span', { class: 'pratica-abre__capa' }, icone('inspiracao', 'icone--g')),
+        h('span', { class: 'pratica-abre__texto' },
+          h('span', { class: 'linha__rotulo', text: 'Na prática' }),
+          h('strong', { text: p.titulo || 'Exemplo com um arquivo seu' }),
+          h('span', { class: 'pratica-abre__pe', text: 'Ver ' + (p.slides || []).length + ' slides' + (p.arquivo ? ' · ' + p.arquivo : '') })),
+        icone('dir')));
+    }
+    return caixa;
+  }
+
+  function pintarPratica(item) {
+    const antigo = ref('corpo').querySelector('[data-pratica]');
+    if (antigo && estado.atual === item.id) antigo.replaceWith(blocoPratica(item));
+  }
+
+  async function pedirPratica(item, botao) {
+    botao.disabled = true;
+    botao.querySelector('span').textContent = 'Pedindo...';
+    try {
+      await dados.pedirPratica(item.id);
+      item.pratica = { estado: 'pedido', pedido_em: new Date().toISOString() };
+      pintarPratica(item);
+    } catch (erro) {
+      botao.disabled = false;
+      botao.querySelector('span').textContent = 'Mostrar na prática';
+      ref('erro-decisao').textContent = erro.message;
+      ref('erro-decisao').hidden = false;
+    }
+  }
+
+  function abrirPratica(item) {
+    const p = item.pratica;
+    if (!p || p.estado !== 'pronta') return;
+    const slides = (p.slides || []).map((s) => ({ tipo: s.tipo, url: s.url, capa: p.capa, rotulo: LADOS[s.lado] || '' }));
+    if (slides.length === 0) return;
+    ref('pratica-titulo').textContent = p.titulo || 'Na prática';
+    ref('pratica-arquivo').textContent = p.arquivo ? 'Com ' + p.arquivo : '';
+    ref('pratica-midia').replaceChildren(midia({ midias: { slides } }) || '');
+    ref('pratica-explicacao').replaceChildren(...(p.explicacao || []).map((t) => h('li', { class: 'itens__item' }, icone('dir', 'icone--p'), h('span', { text: t }))));
+    // O que fica atrás (lista, zoom ou pilha) sai do alcance do teclado enquanto os slides estão abertos.
+    voltaDaPratica = document.activeElement;
+    document.querySelector('.app').inert = true;
+    ref('avaliar').inert = true;
+    ref('pratica').hidden = false;
+    ref('pratica-fechar').focus({ preventScroll: true });
+  }
+
+  let voltaDaPratica = null;
+
+  function fecharPratica() {
+    ref('pratica').querySelectorAll('video').forEach((v) => v.pause());
+    ref('pratica').hidden = true;
+    ref('pratica-midia').replaceChildren();
+    ref('avaliar').inert = false;
+    if (ref('avaliar').hidden) document.querySelector('.app').inert = false;
+    if (voltaDaPratica && voltaDaPratica.isConnected) voltaDaPratica.focus({ preventScroll: true });
+    voltaDaPratica = null;
+  }
+
+  ref('pratica-fechar').addEventListener('click', fecharPratica);
+  document.addEventListener('keydown', (e) => {
+    // Com o exemplo aberto, Esc fecha só ele e as setas não trocam o post que está atrás.
+    if (ref('pratica').hidden || !/^(Escape|ArrowLeft|ArrowRight)$/.test(e.key)) return;
+    e.stopImmediatePropagation();
+    if (e.key === 'Escape') fecharPratica();
+  }, true);
 
   function fichaDoTrabalho(item) {
     const t = item.trabalho;
@@ -622,10 +709,33 @@
         ficha && h('span', { class: 'nota' }, icone('gema', 'icone--p'), numero(ficha.nota)),
         (ficha || t?.de) && h('span', { text: ficha ? assinatura(item) : t.de }),
         // Na linha do autor, e não sobre a imagem: nada cobre o post (#296) nem o meio do card, onde o dedo arrasta.
-        frente && video && h('button', { class: 'av-card__play', type: 'button', onclick: (e) => tocar(midia, video, e.currentTarget) }, icone('dir', 'icone--p'), 'Ver vídeo')));
+        frente && video && h('button', { class: 'av-card__play', type: 'button', onclick: (e) => tocar(midia, video, e.currentTarget) }, icone('dir', 'icone--p'), 'Ver vídeo'),
+        frente && ficha && botaoPraticaNaPilha(item)));
     const el = h('article', { class: 'av-card' + (frente ? ' av-card--frente' : ' av-card--atras'), 'aria-label': tituloDe(item) }, midia, selo, info);
     if (frente) el.append(extraAvaliar(item));
     return el;
+  }
+
+  function botaoPraticaNaPilha(item) {
+    const p = item.pratica;
+    if (p?.estado === 'pronta') return h('button', { class: 'av-card__play', type: 'button', onclick: () => abrirPratica(item) }, icone('inspiracao', 'icone--p'), 'Na prática');
+    if (p && p.estado !== 'erro') return h('span', { class: 'av-card__aviso' }, icone('relogio', 'icone--p'), 'Exemplo a caminho');
+    if (p?.sem_exemplo) return null;
+    return h('button', {
+      class: 'av-card__play', type: 'button',
+      onclick: async (e) => {
+        const botao = e.currentTarget;
+        botao.disabled = true;
+        try {
+          await dados.pedirPratica(item.id);
+          item.pratica = { estado: 'pedido', pedido_em: new Date().toISOString() };
+          botao.replaceWith(botaoPraticaNaPilha(item));
+        } catch (erro) {
+          botao.disabled = false;
+          mostrarErroAvaliar(erro.message);
+        }
+      },
+    }, icone('inspiracao', 'icone--p'), 'Pedir exemplo');
   }
 
   function vazioAvaliar() {

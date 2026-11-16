@@ -1503,8 +1503,9 @@ img.av-card__img {
 
 .av-card__pe {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--e-3);
+  gap: var(--e-2) var(--e-3);
   margin: 0;
   font-size: var(--t-12);
 }
@@ -1788,6 +1789,97 @@ img.av-card__img {
   .av-borda {
     width: 22vw;
   }
+}
+
+/* ───────── na prática (pedido do Guifa em 16/11/2026: exemplo com um arquivo dele, só quando ele pede) ───────── */
+
+/* Rótulo Antes / Depois no canto de cada slide. */
+.midia__slide {
+  position: relative;
+}
+
+.midia__rotulo {
+  position: absolute;
+  top: var(--e-3);
+  left: var(--e-3);
+  background: var(--veu);
+  color: var(--sobre-veu);
+}
+
+/* Na ficha: o exemplo pronto vira um cartão que abre os slides. */
+.pratica-abre {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--e-3);
+  width: 100%;
+  padding: var(--e-3);
+  border: 0;
+  border-radius: var(--raio);
+  background: var(--campo, var(--superficie));
+  color: var(--tinta);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pratica-abre:focus-visible {
+  outline: 2px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.pratica-abre__capa {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--raio-p);
+  background: var(--palco);
+  color: var(--sobre-veu);
+  object-fit: cover;
+}
+
+.pratica-abre__texto {
+  display: grid;
+  gap: var(--e-0);
+  min-width: 0;
+}
+
+.pratica-abre__texto strong {
+  font-size: var(--t-14);
+  font-weight: var(--p-titulo);
+}
+
+.pratica-abre__pe {
+  font-size: var(--t-12);
+  color: var(--tinta-3);
+}
+
+/* Na pilha: exemplo pedido e ainda a caminho. */
+.av-card__aviso {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  margin-left: auto;
+  font-size: var(--t-12);
+}
+
+/* Tela cheia com os slides de antes e depois. */
+.pratica {
+  --altura-midia: 66vh;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow-y: auto;
+  background: var(--fundo);
+}
+
+.pratica__caixa {
+  display: grid;
+  gap: var(--e-3);
+  max-width: 720px;
+  margin-inline: auto;
+  padding: env(safe-area-inset-top, 0px) var(--margem-dir) calc(var(--e-5) + env(safe-area-inset-bottom, 0px)) var(--margem);
 }
 
 @media (prefers-reduced-motion: reduce) {

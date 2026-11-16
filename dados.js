@@ -3,6 +3,7 @@
 //   listar()                                       → itens da caixa de entrada
 //   decidir(id, decisao, comentario)               → grava Aprovar / Recusar / Dúvida
 //   darNota(id, nota) / voltar(id)                 → nota do dono (1 a 5) e o Voltar (desfaz a decisão)
+//   pedirPratica(id)                               → pede ao PC o exemplo "Na prática" daquele post
 //   capturar(texto)                                → manda um link para a fila
 //   sinal()                                        → situação do garimpeiro (texto curto)
 //   aparelhos() / ligarAparelho() / desligarAparelho()
@@ -65,6 +66,11 @@ window.GarimpoDados = (function () {
 
       async voltar(id) {
         memoria[id] = Object.assign({}, memoria[id], { status: 'pronto', decidido_em: null });
+        gravar(memoria);
+      },
+
+      async pedirPratica(id) {
+        memoria[id] = Object.assign({}, memoria[id], { pratica: { estado: 'pedido', pedido_em: new Date().toISOString() } });
         gravar(memoria);
       },
 
@@ -153,7 +159,7 @@ window.GarimpoDados = (function () {
 
       async listar() {
         const r = await banco.from('itens')
-          .select('id, origem, url, status, criado_em, decidido_em, comentario, erro, analise, transcricao, midias, post, resposta, arquivado_em, instalacao, trabalho, nota_dono')
+          .select('id, origem, url, status, criado_em, decidido_em, comentario, erro, analise, transcricao, midias, post, resposta, arquivado_em, instalacao, trabalho, nota_dono, pratica')
           .neq('status', 'duplicado')
           // Salvo antigo importado só aparece quando já tem ficha (ou decisão): a fila dele pode ter centenas.
           .or('importado.eq.false,status.in.(pronto,aprovado,recusado,duvida,instalando,instalado,erro_instalacao,desfeito)')
@@ -166,6 +172,9 @@ window.GarimpoDados = (function () {
           const m = item.midias || {};
           if (m.capa) caminhos.push(m.capa);
           for (const s of m.slides || []) if (s.caminho) caminhos.push(s.caminho);
+          const p = item.pratica || {};
+          if (p.capa) caminhos.push(p.capa);
+          for (const s of p.slides || []) if (s.caminho) caminhos.push(s.caminho);
         }
         const enderecos = {};
         if (caminhos.length > 0) {
@@ -176,8 +185,15 @@ window.GarimpoDados = (function () {
         return r.data.map(function (item) {
           const m = item.midias || {};
           const capa = enderecos[m.capa] || null;
+          const p = item.pratica;
           return Object.assign({}, item, {
             autor: (item.post && item.post.autor) || null,
+            // Exemplo "Na prática": os endereços temporários entram no lugar dos caminhos.
+            pratica: p && Object.assign({}, p, {
+              capa: enderecos[p.capa] || null,
+              slides: (p.slides || []).filter(function (s) { return enderecos[s.caminho]; })
+                .map(function (s) { return { tipo: s.tipo, lado: s.lado, url: enderecos[s.caminho] }; }),
+            }),
             midias: {
               capa: capa,
               slides: (m.slides || []).filter(function (s) { return enderecos[s.caminho]; })
@@ -199,6 +215,11 @@ window.GarimpoDados = (function () {
 
       async voltar(id) {
         const r = await banco.rpc('voltar_decisao', { p_item: id });
+        if (r.error) throw traduzir(r.error);
+      },
+
+      async pedirPratica(id) {
+        const r = await banco.rpc('pedir_pratica', { p_item: id });
         if (r.error) throw traduzir(r.error);
       },
 
