@@ -1207,7 +1207,7 @@ body::before {
   .app {
     display: grid;
     grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto minmax(0, 1fr);
     column-gap: var(--e-5);
     height: 100%;
     padding-block: 0;
@@ -1216,8 +1216,13 @@ body::before {
   .topo,
   .abas,
   .resumo,
+  .avaliar-abre,
   .lista {
     grid-column: 1;
+  }
+
+  .avaliar-abre {
+    grid-row: 4;
   }
 
   .entrada {
@@ -1231,7 +1236,7 @@ body::before {
   }
 
   .lista {
-    grid-row: 4;
+    grid-row: 5;
     padding-right: var(--e-meio);
     overflow-y: auto;
   }
@@ -1294,6 +1299,494 @@ body::before {
 
   .so-celular {
     display: none;
+  }
+}
+
+/* ───────── avaliar arrastando (opção C, escolhida pelo Guifa em 16/11/2026) ─────────
+   Pilha de cards com a mídia na tela toda, texto sobre um degradê escuro e carimbo ao arrastar. */
+
+.avaliar-abre {
+  width: 100%;
+  margin-top: var(--e-3);
+}
+
+.avaliar {
+  --sim: 0;
+  --nao: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--fundo);
+}
+
+.av {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  max-width: 1360px;
+  margin-inline: auto;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: var(--margem);
+  padding-right: var(--margem-dir);
+}
+
+.av-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding-block: var(--e-3);
+}
+
+.av-topo__meio {
+  display: grid;
+  justify-items: center;
+}
+
+.av-topo__titulo {
+  font-size: var(--t-18);
+  font-weight: var(--p-titulo);
+}
+
+.av-topo__conta {
+  font-size: var(--t-12);
+  color: var(--tinta-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.av-topo__vao {
+  width: 40px;
+}
+
+.av-palco {
+  position: relative;
+  display: grid;
+  min-height: 0;
+}
+
+.av-card {
+  --campo: var(--veu);
+  --forca: 0;
+  grid-area: 1 / 1;
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  min-height: 0;
+  border-radius: var(--raio);
+  background: var(--palco);
+  color: var(--sobre-veu);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  transition: transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.av-card--frente {
+  cursor: grab;
+}
+
+.av-card--arrastando {
+  cursor: grabbing;
+}
+
+.av-card--arrastando,
+.av-card--sem-transicao {
+  transition: none;
+}
+
+.av-card--atras {
+  transform: translateY(var(--e-3)) scale(0.95);
+  pointer-events: none;
+}
+
+.av-card__midia {
+  position: relative;
+  grid-area: 1 / 1 / 4 / 2;
+  min-height: 0;
+}
+
+/* Degradê escuro embaixo: o texto fica legível sobre qualquer imagem. */
+.av-card__midia::after {
+  content: "";
+  position: absolute;
+  inset: 25% 0 0;
+  background: linear-gradient(to bottom, transparent, var(--palco) 40%);
+  pointer-events: none;
+}
+
+.av-card__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+img.av-card__img {
+  pointer-events: none;
+}
+
+.av-card__img--topo {
+  object-position: top;
+}
+
+/* Trabalho só em texto (uma resposta): o texto ocupa o lugar da imagem. */
+.av-card__texto {
+  position: absolute;
+  inset: 0 0 45%;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: var(--e-5) var(--e-4);
+  overflow: hidden;
+  font-size: var(--t-14);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* "Ver vídeo" na linha do autor: a imagem fica livre e o meio do card continua sendo onde se arrasta. */
+.av-card__play {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  height: 44px;
+  margin-left: auto;
+  padding: 0 var(--e-3);
+  border: 0;
+  border-radius: var(--raio-pilula);
+  /* Clara e translúcida: aparece sobre o palco escuro nos dois temas. */
+  background: color-mix(in srgb, var(--sobre-veu) 16%, transparent);
+  color: var(--sobre-veu);
+  font: var(--p-titulo) var(--t-12) / 1 var(--familia);
+  cursor: pointer;
+}
+
+.av-card__info,
+.av-extra {
+  position: relative;
+  grid-column: 1;
+}
+
+.av-card__info {
+  grid-row: 2;
+  display: grid;
+  gap: var(--e-2);
+  padding: var(--e-4) var(--e-4) var(--e-2);
+}
+
+.av-card__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2);
+}
+
+.av-card__titulo {
+  margin: 0;
+  font-size: var(--t-18);
+  font-weight: var(--p-titulo);
+  line-height: 1.25;
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.av-card__porque {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.av-card__pe {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  margin: 0;
+  font-size: var(--t-12);
+}
+
+.av-card .tipo,
+.av-card .nota {
+  color: var(--sobre-veu);
+}
+
+/* Selo do arrasto: a pílula do app em carimbo grande, na diagonal (truque da opção ousada, #229). */
+.av-selo {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  z-index: 2;
+  height: 56px;
+  padding: 0 var(--e-5);
+  font-size: var(--t-26);
+  font-weight: var(--p-chama);
+  opacity: var(--forca);
+  transform: translateX(-50%) rotate(-10deg);
+  pointer-events: none;
+}
+
+.av-selo .icone {
+  width: 24px;
+  height: 24px;
+}
+
+.av-selo__sim,
+.av-selo__nao {
+  display: none;
+}
+
+.av-card[data-lado="sim"] .av-selo {
+  background: var(--verde);
+  color: var(--sobre-acao);
+}
+
+/* Texto na cor do fundo: escuro sobre o vermelho claro do tema escuro, claro sobre o vermelho do tema claro. */
+.av-card[data-lado="nao"] .av-selo {
+  background: var(--vermelho);
+  color: var(--fundo);
+  transform: translateX(-50%) rotate(10deg);
+}
+
+.av-card[data-lado="duvida"] .av-selo {
+  background: var(--tinta);
+  color: var(--fundo);
+}
+
+.av-card[data-lado="sim"] .av-selo__sim,
+.av-card[data-lado="nao"] .av-selo__nao {
+  display: block;
+}
+
+/* Lateral tingida: verde à direita para aprovar, vermelho à esquerda para descartar. */
+.av-borda {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  z-index: 21;
+  width: min(32vw, 200px);
+  pointer-events: none;
+}
+
+.av-borda--sim {
+  right: 0;
+  background: linear-gradient(to left, color-mix(in srgb, var(--verde) 55%, transparent), transparent);
+  opacity: var(--sim);
+}
+
+.av-borda--nao {
+  left: 0;
+  background: linear-gradient(to right, color-mix(in srgb, var(--vermelho) 55%, transparent), transparent);
+  opacity: var(--nao);
+}
+
+/* Nota do dono (1 a 5) e comentário falado, dentro do card. */
+.av-extra {
+  grid-row: 3;
+  display: grid;
+  gap: var(--e-2);
+  padding: 0 var(--e-4) var(--e-4);
+}
+
+.av-nota {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.av-nota__rotulo {
+  font-size: var(--t-11);
+}
+
+.av-nota__gemas {
+  display: flex;
+}
+
+.av-gema {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--raio-pilula);
+  background: none;
+  color: var(--sobre-veu);
+  cursor: pointer;
+}
+
+.av-gema .icone {
+  width: 24px;
+  height: 24px;
+}
+
+.av-gema--cheia .icone {
+  fill: currentColor;
+}
+
+.av-gema:focus-visible {
+  outline: 2px solid var(--sobre-veu);
+  outline-offset: -2px;
+}
+
+.av-fala {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.av-fala__texto {
+  color: var(--sobre-veu);
+  user-select: text;
+}
+
+.av-fala__texto::placeholder {
+  color: var(--sobre-veu);
+}
+
+.av-fala__mic {
+  width: 44px;
+  height: 44px;
+  background: var(--campo);
+  color: var(--sobre-veu);
+}
+
+.av-fala__mic--ouvindo {
+  background: var(--vermelho-fundo);
+  color: var(--vermelho);
+}
+
+/* Rodapé de decisão: Descartar à esquerda, Aprovar na ponta direita (#217). */
+.av-rodape {
+  display: grid;
+  gap: var(--e-3);
+  padding-block: var(--e-4) calc(var(--e-3) + env(safe-area-inset-bottom, 0px));
+}
+
+.av-acoes {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--e-2);
+  padding-inline: var(--e-3);
+}
+
+.av-acao {
+  display: grid;
+  justify-items: center;
+  gap: var(--e-1);
+  min-width: 56px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tinta);
+  font: var(--p-titulo) var(--t-11) / 1.2 var(--familia);
+  cursor: pointer;
+}
+
+.av-acao__circulo {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-block: var(--e-3);
+  border-radius: var(--raio-pilula);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+  transition: transform 0.1s ease;
+}
+
+.av-acao--sim .av-acao__circulo,
+.av-acao--nao .av-acao__circulo {
+  width: 64px;
+  height: 64px;
+  margin-block: 0;
+}
+
+.av-acao--sim .av-acao__circulo {
+  background: var(--acao);
+  color: var(--sobre-acao);
+}
+
+.av-acao:active .av-acao__circulo {
+  transform: scale(0.94);
+}
+
+.av-acao:focus-visible {
+  outline: none;
+}
+
+.av-acao:focus-visible .av-acao__circulo {
+  outline: 2px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.av-acao:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.av-dica {
+  display: none;
+}
+
+.av-vazio {
+  align-self: center;
+}
+
+@media (min-width: 1000px) {
+  /* No computador o zoom já tem o Aprovar cheio: aqui o botão de entrada fica secundário (#223). */
+  .avaliar-abre {
+    width: auto;
+    justify-self: start;
+    background: var(--superficie);
+    color: var(--tinta);
+    font-weight: var(--p-titulo);
+  }
+
+  .av {
+    padding-inline: var(--e-5);
+  }
+
+  .av-palco {
+    width: 100%;
+    max-width: 460px;
+    margin-inline: auto;
+    padding-block: var(--e-2);
+  }
+
+  .av-acoes {
+    width: 100%;
+    max-width: 520px;
+    margin-inline: auto;
+  }
+
+  .av-dica {
+    display: flex;
+    justify-content: center;
+    gap: var(--e-5);
+    margin: 0;
+    font-size: var(--t-12);
+    color: var(--tinta-3);
+  }
+
+  .av-dica kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 var(--e-meio);
+    border-radius: var(--raio-p);
+    background: var(--superficie-2);
+    color: var(--tinta-2);
+    font: var(--p-titulo) var(--t-12) / 1 var(--familia);
+  }
+
+  .av-borda {
+    width: 22vw;
   }
 }
 

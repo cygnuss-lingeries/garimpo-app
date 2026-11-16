@@ -2,6 +2,7 @@
 //   sessao() / entrar() / criarAcesso() / sair()   → quem está usando
 //   listar()                                       → itens da caixa de entrada
 //   decidir(id, decisao, comentario)               → grava Aprovar / Recusar / Dúvida
+//   darNota(id, nota) / voltar(id)                 → nota do dono (1 a 5) e o Voltar (desfaz a decisão)
 //   capturar(texto)                                → manda um link para a fila
 //   sinal()                                        → situação do garimpeiro (texto curto)
 //   aparelhos() / ligarAparelho() / desligarAparelho()
@@ -53,7 +54,17 @@ window.GarimpoDados = (function () {
       },
 
       async decidir(id, decisao, comentario) {
-        memoria[id] = { status: decisao, comentario: comentario || null, decidido_em: new Date().toISOString() };
+        memoria[id] = Object.assign({}, memoria[id], { status: decisao, comentario: comentario || null, decidido_em: new Date().toISOString() });
+        gravar(memoria);
+      },
+
+      async darNota(id, nota) {
+        memoria[id] = Object.assign({}, memoria[id], { nota_dono: nota || null });
+        gravar(memoria);
+      },
+
+      async voltar(id) {
+        memoria[id] = Object.assign({}, memoria[id], { status: 'pronto', decidido_em: null });
         gravar(memoria);
       },
 
@@ -142,7 +153,7 @@ window.GarimpoDados = (function () {
 
       async listar() {
         const r = await banco.from('itens')
-          .select('id, origem, url, status, criado_em, decidido_em, comentario, erro, analise, transcricao, midias, post, resposta, arquivado_em, instalacao')
+          .select('id, origem, url, status, criado_em, decidido_em, comentario, erro, analise, transcricao, midias, post, resposta, arquivado_em, instalacao, trabalho, nota_dono')
           .neq('status', 'duplicado')
           // Salvo antigo importado só aparece quando já tem ficha (ou decisão): a fila dele pode ter centenas.
           .or('importado.eq.false,status.in.(pronto,aprovado,recusado,duvida,instalando,instalado,erro_instalacao,desfeito)')
@@ -178,6 +189,16 @@ window.GarimpoDados = (function () {
 
       async decidir(id, decisao, comentario) {
         const r = await banco.rpc('decidir', { p_item: id, p_decisao: decisao, p_comentario: comentario || null });
+        if (r.error) throw traduzir(r.error);
+      },
+
+      async darNota(id, nota) {
+        const r = await banco.rpc('dar_nota', { p_item: id, p_nota: nota || null });
+        if (r.error) throw traduzir(r.error);
+      },
+
+      async voltar(id) {
+        const r = await banco.rpc('voltar_decisao', { p_item: id });
         if (r.error) throw traduzir(r.error);
       },
 

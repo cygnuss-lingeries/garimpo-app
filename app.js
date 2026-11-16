@@ -64,8 +64,14 @@
   const abaAtual = () => ABAS.find((a) => a.id === estado.aba);
   const zoomAberto = () => !ref('zoom').hidden;
 
+  // Trabalho real (feito com uma skill) já pronto: no lugar do veredito vai a skill e a versão.
+  const trabalhoPronto = (item) => (item.trabalho && !ESTADOS[item.status] ? item.trabalho : null);
+  const tituloDe = (item) => item.analise?.titulo || item.trabalho?.titulo || 'Post do ' + (ORIGENS[item.origem] || 'link');
+
   function pilula(item) {
     const ficha = item.analise;
+    const trab = trabalhoPronto(item);
+    if (trab) return h('span', { class: 'pilula pilula--estado' }, icone('skill', 'icone--p'), trab.skill + ' ' + trab.versao);
     if (!ficha) return h('span', { class: 'pilula pilula--estado', text: (ESTADOS[item.status] || ESTADOS.erro).rotulo });
     if (ficha.tentativa_de_manipulacao) return h('span', { class: 'pilula pilula--alerta' }, icone('alerta', 'icone--p'), 'Tentou enganar');
     return h('span', { class: 'pilula pilula--' + ficha.veredito, text: VEREDITOS[ficha.veredito] || ficha.veredito });
@@ -73,6 +79,7 @@
 
   function rotuloDeTipo(item) {
     const ficha = item.analise;
+    if (item.trabalho) return h('span', { class: 'tipo' }, icone('trabalho', 'icone--p'), 'Trabalho real');
     if (!ficha) return h('span', { class: 'tipo' }, icone('elo', 'icone--p'), ORIGENS[item.origem] || 'Link');
     return h('span', { class: 'tipo' }, icone(TIPOS[ficha.tipo] ? ficha.tipo : 'outro', 'icone--p'), TIPOS[ficha.tipo] || 'Outro');
   }
@@ -86,7 +93,8 @@
 
   function montarSequencia() {
     const aba = abaAtual();
-    const peso = (i) => (i.status === 'pronto' ? 0 : 1);
+    // Trabalho real (mandado por uma skill para avaliar) vem antes dos posts prontos.
+    const peso = (i) => (i.status === 'pronto' ? (i.trabalho ? -1 : 0) : 1);
     estado.sequencia = estado.itens
       .filter((i) => aba.tem(i.status))
       .sort((a, b) => peso(a) - peso(b)
@@ -140,20 +148,22 @@
 
   function card(item) {
     const ficha = item.analise;
+    const trab = trabalhoPronto(item);
     const feito = DECISOES[item.status];
     const capa = item.midias?.capa
       ? h('img', { class: 'card__capa', src: item.midias.capa, alt: '', loading: 'lazy' })
-      : h('span', { class: 'card__capa' }, icone((ESTADOS[item.status] || ESTADOS.erro).icone, 'icone--g'));
+      : h('span', { class: 'card__capa' }, icone(trab ? 'trabalho' : (ESTADOS[item.status] || ESTADOS.erro).icone, 'icone--g'));
     return h('button', {
-      class: ficha ? 'card' : 'card card--sem-ficha', type: 'button', 'data-id': item.id,
+      class: ficha || trab ? 'card' : 'card card--sem-ficha', type: 'button', 'data-id': item.id,
       'aria-current': item.id === estado.atual && largo.matches ? 'true' : null,
       onclick: () => abrir(item.id),
     }, capa, h('span', { class: 'card__corpo' },
       h('span', { class: 'card__topo' }, pilula(item)),
-      h('strong', { class: 'card__titulo', text: ficha ? ficha.titulo : 'Post do ' + (ORIGENS[item.origem] || 'link') }),
-      h('span', { class: 'card__porque', text: ficha ? ficha.porque : (ESTADOS[item.status] || ESTADOS.erro).texto }),
+      h('strong', { class: 'card__titulo', text: tituloDe(item) }),
+      h('span', { class: 'card__porque', text: ficha ? ficha.porque : trab ? (trab.pedido || trab.texto || '') : item.trabalho && item.status === 'erro' ? 'Não subiu. Mande o trabalho de novo pelo comando.' : (ESTADOS[item.status] || ESTADOS.erro).texto }),
       h('span', { class: 'card__pe' },
         ficha && h('span', { class: 'nota' }, icone('gema', 'icone--p'), numero(ficha.nota)),
+        trab && item.nota_dono && h('span', { class: 'nota' }, icone('gema', 'icone--p'), item.nota_dono + ' de 5'),
         feito
           ? h('span', { class: 'card__fim' + (item.status === 'aprovado' ? ' card__fim--aprovado' : '') }, icone(feito.icone, 'icone--p'), feito.feito)
           : h('span', { class: 'card__fim' }, icone('dir', 'icone--p')))));
@@ -199,6 +209,7 @@
 
   function renderTudo() {
     renderAbas();
+    pintarBotaoAvaliar();
     renderResumo();
     if (largo.matches && !estado.sequencia.includes(estado.atual)) estado.atual = estado.sequencia[0] || null;
     renderLista();
@@ -260,6 +271,10 @@
 
   // O que aconteceu depois que o dono decidiu: a resposta à dúvida dele e onde o aprovado foi guardado.
   function depoisDaDecisao(item) {
+    if (item.trabalho) {
+      return DECISOES[item.status] ? h('div', { class: 'linhas', 'data-depois': true, role: 'status' },
+        linha('check', 'Avaliação guardada', 'Conta como prova da ' + item.trabalho.skill + ' ' + item.trabalho.versao + '.')) : null;
+    }
     const linhas = [];
     if (item.status === 'duvida' && item.comentario) {
       // A resposta chega em até 3 frases curtas, uma por linha: vira lista, não parágrafo.
@@ -326,6 +341,20 @@
         h('p', { class: 'fala__texto', text: item.transcricao })));
   }
 
+  function fichaDoTrabalho(item) {
+    const t = item.trabalho;
+    return h('article', { class: 'ficha' },
+      h('div', { class: 'ficha__topo' }, rotuloDeTipo(item), pilula(item)),
+      h('h2', { class: 'ficha__titulo', text: t.titulo }),
+      h('p', { class: 'ficha__porque', text: t.pedido || 'Trabalho feito com ' + t.skill + '.' }),
+      depoisDaDecisao(item),
+      t.texto && h('section', { class: 'bloco' }, h('span', { class: 'bloco__rotulo', text: 'Resposta' }), h('p', { class: 'bloco__texto', text: t.texto })),
+      h('div', { class: 'linhas' },
+        linha('skill', 'Feito com', t.skill + ' ' + t.versao),
+        item.nota_dono && linha('gema', 'Sua nota', item.nota_dono + ' de 5'),
+        t.de && linha('fala', 'Mandado por', t.de)));
+  }
+
   function semFicha(item) {
     const e = ESTADOS[item.status] || ESTADOS.erro;
     const original = seguro(item.url);
@@ -362,10 +391,10 @@
     const pecas = midia(item);
     const corpo = ref('corpo');
     corpo.classList.toggle('zoom__corpo--so-texto', !pecas);
-    corpo.replaceChildren(...[pecas, item.analise ? ficha(item) : semFicha(item)].filter(Boolean));
+    corpo.replaceChildren(...[pecas, item.analise ? ficha(item) : trabalhoPronto(item) ? fichaDoTrabalho(item) : semFicha(item)].filter(Boolean));
     corpo.scrollTop = 0;
 
-    const decidivel = Boolean(item.analise) && ['pronto', 'aprovado', 'recusado', 'duvida'].includes(item.status);
+    const decidivel = Boolean(item.analise || item.trabalho) && ['pronto', 'aprovado', 'recusado', 'duvida'].includes(item.status);
     ref('decisao').hidden = !decidivel;
     ref('erro-decisao').hidden = true;
     ref('comentario').value = item.comentario || '';
@@ -457,6 +486,7 @@
     botoes.forEach((b) => { b.disabled = false; });
     pintarDecisao(item);
     renderAbas();
+    pintarBotaoAvaliar();
     trocarCard(item);
     pintarDepois(item);
   }
@@ -476,6 +506,297 @@
       ref('erro-decisao').hidden = false;
     }
   }
+
+  // ───────── avaliar arrastando (opção C, escolhida pelo Guifa em 16/11/2026) ─────────
+  // Um card por vez: direita aprova, esquerda descarta, com a lateral tingindo de verde ou vermelho.
+  // Só decide depois de arrastar 35% da largura; abaixo disso o card volta. Os botões fazem o mesmo (#80).
+
+  const LIMITE = 0.35;
+  const SELOS = { sim: 'Aprovar', nao: 'Descartar', duvida: 'Dúvida' };
+  const PARA_DECISAO = { sim: 'aprovado', nao: 'recusado', duvida: 'duvida' };
+  const RECONHECER = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const avaliar = { fila: [], i: 0, historico: [], ocupado: false, aberto: false };
+  const prontoParaAvaliar = (item) => item.status === 'pronto' && Boolean(item.analise || item.trabalho);
+  let ouvindo = null;
+
+  function pintarBotaoAvaliar() {
+    const n = estado.itens.filter(prontoParaAvaliar).length;
+    ref('abrir-avaliar').hidden = estado.carregando || estado.aba !== 'pendentes' || n === 0;
+    ref('avaliar-texto').textContent = 'Avaliar arrastando · ' + n;
+  }
+
+  function tingir(p) {
+    const caixa = ref('avaliar');
+    caixa.style.setProperty('--sim', Math.max(0, Math.min(1, p)).toFixed(3));
+    caixa.style.setProperty('--nao', Math.max(0, Math.min(1, -p)).toFixed(3));
+  }
+
+  function posicionar(el, dx, dy, girar) {
+    el.style.setProperty('transform', 'translate(' + dx + 'px,' + dy + 'px) rotate(' + (girar ? dx / 22 : 0) + 'deg)');
+  }
+
+  function marcarSelo(el, p, lado) {
+    const qual = lado || (p > 0 ? 'sim' : p < 0 ? 'nao' : '');
+    el.dataset.lado = qual;
+    el.style.setProperty('--forca', Math.min(1, Math.abs(p)).toFixed(3));
+    el.querySelector('.av-selo__texto').textContent = SELOS[qual] || '';
+  }
+
+  function tocar(caixa, video, botao) {
+    const img = caixa.querySelector('.av-card__img');
+    const tela = h('video', { class: 'av-card__img', src: video.url, poster: video.capa, controls: true, autoplay: true, playsinline: true });
+    if (img) img.replaceWith(tela); else caixa.prepend(tela);
+    botao.remove();
+  }
+
+  async function marcarNota(item, nota, grupo) {
+    const antes = item.nota_dono || null;
+    const pintar = (n) => grupo.querySelectorAll('.av-gema').forEach((g, k) => {
+      g.classList.toggle('av-gema--cheia', k < (n || 0));
+      g.setAttribute('aria-checked', String(k + 1 === n));
+    });
+    item.nota_dono = nota;
+    pintar(nota);
+    try {
+      await dados.darNota(item.id, nota);
+    } catch (erro) {
+      item.nota_dono = antes;
+      pintar(antes);
+      mostrarErroAvaliar('A nota não salvou. Toque de novo.');
+    }
+  }
+
+  function ditar(campo, botao) {
+    if (ouvindo) { ouvindo.stop(); return; }
+    const r = new RECONHECER();
+    r.lang = 'pt-BR';
+    r.continuous = true;
+    r.interimResults = true;
+    const antes = campo.value ? campo.value.replace(/\s*$/, ' ') : '';
+    let final = '';
+    r.onresult = (e) => {
+      let parcial = '';
+      for (let k = e.resultIndex; k < e.results.length; k++) {
+        if (e.results[k].isFinal) final += e.results[k][0].transcript;
+        else parcial += e.results[k][0].transcript;
+      }
+      campo.value = antes + final + parcial;
+    };
+    r.onerror = () => mostrarErroAvaliar('O microfone não ouviu. Toque nele de novo ou escreva.');
+    r.onend = () => { ouvindo = null; botao.classList.remove('av-fala__mic--ouvindo'); botao.setAttribute('aria-label', 'Falar o comentário'); };
+    try { r.start(); } catch (erro) { return; }
+    ouvindo = r;
+    botao.classList.add('av-fala__mic--ouvindo');
+    botao.setAttribute('aria-label', 'Parar de ouvir');
+  }
+
+  function extraAvaliar(item) {
+    const gemas = h('div', { class: 'av-nota__gemas', role: 'radiogroup', 'aria-label': 'Sua nota' });
+    gemas.append(...[1, 2, 3, 4, 5].map((n) => h('button', {
+      class: 'av-gema' + (n <= (item.nota_dono || 0) ? ' av-gema--cheia' : ''), type: 'button', role: 'radio',
+      'aria-checked': String(n === item.nota_dono), 'aria-label': 'Nota ' + n + ' de 5',
+      onclick: () => marcarNota(item, n === item.nota_dono ? null : n, gemas),
+    }, icone('gema'))));
+    const campo = h('textarea', { class: 'campo__texto av-fala__texto', id: 'avaliar-comentario', rows: '1', maxlength: '500', placeholder: 'Comentário (opcional)', 'aria-label': 'Comentário' });
+    campo.value = item.comentario || '';
+    const fala = h('div', { class: 'av-fala' }, campo);
+    if (RECONHECER) fala.append(h('button', { class: 'botao-icone av-fala__mic', type: 'button', 'aria-label': 'Falar o comentário', onclick: (e) => ditar(campo, e.currentTarget) }, icone('microfone')));
+    else campo.placeholder = 'Comentário (opcional). Windows + H para falar';
+    return h('div', { class: 'av-extra' }, h('div', { class: 'av-nota' }, h('span', { class: 'av-nota__rotulo', text: 'Sua nota' }), gemas), fala);
+  }
+
+  function cartaoAvaliar(item, frente) {
+    const ficha = item.analise;
+    const t = item.trabalho;
+    const video = (item.midias?.slides || []).find((s) => s.tipo === 'video');
+    const capa = item.midias?.capa;
+    const midia = h('div', { class: 'av-card__midia' },
+      capa ? h('img', { class: 'av-card__img' + (t ? ' av-card__img--topo' : ''), src: capa, alt: '', draggable: 'false' })
+        : t?.texto ? h('p', { class: 'av-card__texto', text: t.texto }) : null);
+    const selo = h('span', { class: 'pilula av-selo', 'aria-hidden': 'true' }, icone('check', 'av-selo__sim'), icone('x', 'av-selo__nao'), h('span', { class: 'av-selo__texto' }));
+    const info = h('div', { class: 'av-card__info' },
+      h('div', { class: 'av-card__topo' }, rotuloDeTipo(item), pilula(item)),
+      h('h2', { class: 'av-card__titulo', text: tituloDe(item) }),
+      (ficha || t?.pedido) && h('p', { class: 'av-card__porque', text: ficha ? ficha.porque : t.pedido }),
+      h('div', { class: 'av-card__pe' },
+        ficha && h('span', { class: 'nota' }, icone('gema', 'icone--p'), numero(ficha.nota)),
+        (ficha || t?.de) && h('span', { text: ficha ? assinatura(item) : t.de }),
+        // Na linha do autor, e não sobre a imagem: nada cobre o post (#296) nem o meio do card, onde o dedo arrasta.
+        frente && video && h('button', { class: 'av-card__play', type: 'button', onclick: (e) => tocar(midia, video, e.currentTarget) }, icone('dir', 'icone--p'), 'Ver vídeo')));
+    const el = h('article', { class: 'av-card' + (frente ? ' av-card--frente' : ' av-card--atras'), 'aria-label': tituloDe(item) }, midia, selo, info);
+    if (frente) el.append(extraAvaliar(item));
+    return el;
+  }
+
+  function vazioAvaliar() {
+    const feitos = avaliar.historico.length;
+    return h('div', { class: 'vazio av-vazio' }, h('span', { class: 'vazio__selo' }, icone('check', 'icone--g')),
+      h('p', { class: 'vazio__titulo', text: 'Tudo avaliado' }),
+      h('p', { class: 'vazio__texto', text: feitos === 1 ? '1 card avaliado agora.' : feitos + ' cards avaliados agora.' }),
+      h('button', { class: 'botao', type: 'button', onclick: fecharAvaliar }, 'Ver a lista'));
+  }
+
+  function pintarAcoesAvaliar() {
+    const tem = Boolean(avaliar.fila[avaliar.i]);
+    for (const b of ref('avaliar').querySelectorAll('[data-avaliar]')) {
+      b.disabled = b.dataset.avaliar === 'voltar' ? avaliar.historico.length === 0 : !tem;
+    }
+  }
+
+  function mostrarErroAvaliar(texto) {
+    ref('avaliar-erro').textContent = texto;
+    ref('avaliar-erro').hidden = false;
+  }
+
+  function desenharAvaliar() {
+    const palco = ref('avaliar-palco');
+    const item = itemDe(avaliar.fila[avaliar.i]);
+    ref('avaliar-conta').textContent = item ? (avaliar.i + 1) + ' de ' + avaliar.fila.length : '';
+    tingir(0);
+    if (!item) { palco.replaceChildren(vazioAvaliar()); pintarAcoesAvaliar(); return; }
+    const proximo = itemDe(avaliar.fila[avaliar.i + 1]);
+    const frente = cartaoAvaliar(item, true);
+    palco.replaceChildren(...[proximo && cartaoAvaliar(proximo, false), frente].filter(Boolean));
+    prenderArrasto(frente);
+    pintarAcoesAvaliar();
+  }
+
+  // A largura vem do layout (offsetWidth): a do retângulo cresce com o card inclinado e pediria um arrasto maior.
+  function prenderArrasto(el) {
+    let x0 = null;
+    let y0 = 0;
+    let passou = false;
+    el.addEventListener('pointerdown', (e) => {
+      if (avaliar.ocupado || e.button > 0 || e.target.closest('button, textarea, input, video, a')) return;
+      x0 = e.clientX;
+      y0 = e.clientY;
+      passou = false;
+      el.setPointerCapture(e.pointerId);
+      el.classList.add('av-card--arrastando');
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (x0 === null) return;
+      const dx = e.clientX - x0;
+      const p = dx / (LIMITE * el.offsetWidth);
+      posicionar(el, dx, (e.clientY - y0) * 0.15, true);
+      tingir(p);
+      marcarSelo(el, p);
+      // Toque curto no celular quando passa do limite: daqui para frente, soltar decide.
+      if ((Math.abs(p) >= 1) !== passou) { passou = Math.abs(p) >= 1; if (passou && navigator.vibrate) navigator.vibrate(12); }
+    });
+    const soltar = (e) => {
+      if (x0 === null) return;
+      const p = (e.clientX - x0) / (LIMITE * el.offsetWidth);
+      x0 = null;
+      el.classList.remove('av-card--arrastando');
+      if (Math.abs(p) >= 1) decidirAvaliar(p > 0 ? 'sim' : 'nao');
+      else { posicionar(el, 0, 0, false); tingir(0); marcarSelo(el, 0); }
+    };
+    el.addEventListener('pointerup', soltar);
+    el.addEventListener('pointercancel', soltar);
+  }
+
+  async function decidirAvaliar(lado) {
+    const el = ref('avaliar-palco').querySelector('.av-card--frente');
+    const item = itemDe(avaliar.fila[avaliar.i]);
+    if (!el || !item || avaliar.ocupado) return;
+    avaliar.ocupado = true;
+    ref('avaliar-erro').hidden = true;
+    if (ouvindo) ouvindo.stop();
+    const comentario = (document.getElementById('avaliar-comentario')?.value || '').trim();
+    const decisao = PARA_DECISAO[lado];
+    marcarSelo(el, 1, lado);
+    tingir(lado === 'sim' ? 1 : lado === 'nao' ? -1 : 0);
+    el.classList.add('av-card--saindo');
+    if (lado === 'duvida') posicionar(el, 0, -window.innerHeight, false);
+    else posicionar(el, (lado === 'sim' ? 1 : -1) * window.innerWidth * 1.2, 40, true);
+    const salvo = dados.decidir(item.id, decisao, comentario).then(() => true, () => false);
+    await new Promise((r) => setTimeout(r, 260));
+    const deuCerto = await salvo;
+    if (deuCerto) {
+      if (decisao === 'duvida' && (comentario || null) !== (item.comentario || null)) item.resposta = null;
+      Object.assign(item, { status: decisao, comentario: comentario || null, decidido_em: new Date().toISOString() });
+      avaliar.historico.push(item.id);
+      avaliar.i += 1;
+      ref('avaliar-status').textContent = SELOS[lado] + ': ' + tituloDe(item);
+    }
+    avaliar.ocupado = false;
+    desenharAvaliar();
+    if (!deuCerto) mostrarErroAvaliar('Não salvou. Confira a internet e tente de novo.');
+  }
+
+  async function voltarAvaliar() {
+    const item = itemDe(avaliar.historico[avaliar.historico.length - 1]);
+    if (!item || avaliar.ocupado) return;
+    avaliar.ocupado = true;
+    ref('avaliar-erro').hidden = true;
+    try {
+      await dados.voltar(item.id);
+    } catch (erro) {
+      avaliar.ocupado = false;
+      mostrarErroAvaliar(erro.message);
+      return;
+    }
+    avaliar.historico.pop();
+    const de = item.status === 'aprovado' ? 1 : item.status === 'recusado' ? -1 : 0;
+    Object.assign(item, { status: 'pronto', decidido_em: null });
+    avaliar.i = Math.max(0, avaliar.fila.indexOf(item.id));
+    avaliar.ocupado = false;
+    desenharAvaliar();
+    // Volta pelo mesmo lado por onde saiu.
+    const el = ref('avaliar-palco').querySelector('.av-card--frente');
+    el.classList.add('av-card--sem-transicao');
+    posicionar(el, de * window.innerWidth, de ? 40 : -window.innerHeight, true);
+    el.getBoundingClientRect();
+    el.classList.remove('av-card--sem-transicao');
+    posicionar(el, 0, 0, false);
+    ref('avaliar-status').textContent = 'Voltou: ' + tituloDe(item);
+  }
+
+  function abrirAvaliar() {
+    avaliar.fila = estado.sequencia.map(itemDe).filter((i) => i && prontoParaAvaliar(i)).map((i) => i.id);
+    if (avaliar.fila.length === 0) return;
+    avaliar.i = 0;
+    avaliar.historico = [];
+    avaliar.aberto = true;
+    ref('avaliar-erro').hidden = true;
+    ref('avaliar').hidden = false;
+    document.querySelector('.app').inert = true;
+    if (location.hash !== '#avaliar') location.hash = 'avaliar';
+    desenharAvaliar();
+    ref('avaliar-fechar').focus({ preventScroll: true });
+  }
+
+  function fecharAvaliar() {
+    if (location.hash === '#avaliar') history.back();
+    else aoFecharAvaliar();
+  }
+
+  function aoFecharAvaliar() {
+    if (!avaliar.aberto) return;
+    if (ouvindo) ouvindo.stop();
+    avaliar.aberto = false;
+    ref('avaliar').hidden = true;
+    ref('avaliar-palco').replaceChildren();
+    document.querySelector('.app').inert = false;
+    montarSequencia();
+    renderTudo();
+    if (!ref('abrir-avaliar').hidden) ref('abrir-avaliar').focus({ preventScroll: true });
+  }
+
+  ref('abrir-avaliar').addEventListener('click', abrirAvaliar);
+  ref('avaliar-fechar').addEventListener('click', fecharAvaliar);
+  for (const b of ref('avaliar').querySelectorAll('[data-avaliar]')) {
+    b.addEventListener('click', () => (b.dataset.avaliar === 'voltar' ? voltarAvaliar() : decidirAvaliar(b.dataset.avaliar)));
+  }
+  window.addEventListener('hashchange', () => { if (avaliar.aberto && location.hash !== '#avaliar') aoFecharAvaliar(); });
+  document.addEventListener('keydown', (e) => {
+    if (!avaliar.aberto || e.target.closest('textarea, input, .av-nota__gemas, video')) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); voltarAvaliar(); }
+    else if (e.key === 'ArrowRight') decidirAvaliar('sim');
+    else if (e.key === 'ArrowLeft') decidirAvaliar('nao');
+    else if (e.key === 'Escape') fecharAvaliar();
+  });
 
   // ───────── colar link ─────────
 
@@ -958,6 +1279,8 @@
   }
 
   async function iniciar() {
+    // Recarregou com a pilha aberta: começa pela lista.
+    if (location.hash === '#avaliar') history.replaceState(null, '', location.pathname + location.search);
     let sessao = null;
     try { sessao = await dados.sessao(); } catch (erro) { /* sem conexão: cai na entrada */ }
     if (dados.modo === 'nuvem' && !sessao) { mostrarEntrada(true); return; }

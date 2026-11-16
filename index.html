@@ -46,6 +46,10 @@
   <symbol id="i-conta" viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5"/><path d="M5 19c1.2-3.2 3.8-5 7-5s5.8 1.8 7 5"/></symbol>
   <symbol id="i-copiar" viewBox="0 0 24 24"><rect x="9" y="9" width="10" height="10" rx="2"/><path d="M5 15V7a2 2 0 0 1 2-2h8"/></symbol>
   <symbol id="i-pc" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="11" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-trabalho" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></symbol>
+  <symbol id="i-microfone" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+  <symbol id="i-desfazer" viewBox="0 0 24 24"><path d="M9 7H4V2"/><path d="M4.5 7A8 8 0 1 1 4 13"/></symbol>
+  <symbol id="i-cartas" viewBox="0 0 24 24"><rect x="7" y="4" width="12" height="16" rx="2"/><path d="M4 7v11a2 2 0 0 0 2 2h1"/></symbol>
   <symbol id="i-celular" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></symbol>
 </svg>
 
@@ -88,6 +92,9 @@
 
   <nav class="abas" aria-label="Situação dos posts" data-ref="abas"></nav>
   <section class="resumo" data-ref="resumo" aria-label="Resumo dos pendentes" hidden></section>
+  <button class="botao botao--primario avaliar-abre" type="button" data-ref="abrir-avaliar" hidden>
+    <svg class="icone" aria-hidden="true"><use href="#i-cartas"></use></svg><span data-ref="avaliar-texto">Avaliar arrastando</span>
+  </button>
   <main class="lista" data-ref="lista"></main>
 
   <section class="zoom" data-ref="zoom" aria-label="Detalhe do post" hidden>
@@ -126,6 +133,49 @@
     </form>
   </section>
 </div>
+
+<section class="avaliar" data-ref="avaliar" aria-label="Avaliar arrastando" hidden>
+  <div class="av">
+    <header class="av-topo">
+      <button class="botao-icone" type="button" data-ref="avaliar-fechar" aria-label="Voltar para a lista">
+        <svg class="icone" aria-hidden="true"><use href="#i-esq"></use></svg>
+      </button>
+      <div class="av-topo__meio">
+        <strong class="av-topo__titulo">Avaliar</strong>
+        <span class="av-topo__conta" data-ref="avaliar-conta"></span>
+      </div>
+      <span class="av-topo__vao" aria-hidden="true"></span>
+    </header>
+    <main class="av-palco" data-ref="avaliar-palco"></main>
+    <footer class="av-rodape">
+      <p class="decisao__erro" data-ref="avaliar-erro" role="alert" hidden></p>
+      <div class="av-acoes">
+        <button class="av-acao av-acao--nao" type="button" data-avaliar="nao">
+          <span class="av-acao__circulo"><svg class="icone icone--g" aria-hidden="true"><use href="#i-x"></use></svg></span>
+          <span class="av-acao__rotulo">Descartar</span>
+        </button>
+        <button class="av-acao" type="button" data-avaliar="voltar">
+          <span class="av-acao__circulo"><svg class="icone" aria-hidden="true"><use href="#i-desfazer"></use></svg></span>
+          <span class="av-acao__rotulo">Voltar</span>
+        </button>
+        <button class="av-acao" type="button" data-avaliar="duvida">
+          <span class="av-acao__circulo"><svg class="icone" aria-hidden="true"><use href="#i-duvida"></use></svg></span>
+          <span class="av-acao__rotulo">Dúvida</span>
+        </button>
+        <button class="av-acao av-acao--sim" type="button" data-avaliar="sim">
+          <span class="av-acao__circulo"><svg class="icone icone--g" aria-hidden="true"><use href="#i-check"></use></svg></span>
+          <span class="av-acao__rotulo">Aprovar</span>
+        </button>
+      </div>
+      <p class="av-dica" aria-hidden="true">
+        <span><kbd>←</kbd> Descartar</span><span><kbd>Ctrl</kbd> <kbd>Z</kbd> Voltar</span><span><kbd>→</kbd> Aprovar</span>
+      </p>
+    </footer>
+  </div>
+  <div class="av-borda av-borda--nao" aria-hidden="true"></div>
+  <div class="av-borda av-borda--sim" aria-hidden="true"></div>
+  <span class="so-leitor" role="status" data-ref="avaliar-status"></span>
+</section>
 
 <dialog class="folha" data-ref="folha" aria-labelledby="folha-titulo">
   <form class="folha__forma" method="dialog" data-ref="forma-colar">
