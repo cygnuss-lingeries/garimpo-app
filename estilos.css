@@ -1207,22 +1207,46 @@ body::before {
   .app {
     display: grid;
     grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
-    grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
     column-gap: var(--e-5);
     height: 100%;
     padding-block: 0;
   }
 
   .topo,
+  .pasta-topo,
   .abas,
   .resumo,
   .avaliar-abre,
-  .lista {
+  .lista,
+  .inicio {
     grid-column: 1;
   }
 
-  .avaliar-abre {
+  .topo {
+    grid-row: 1;
+  }
+
+  .pasta-topo {
+    grid-row: 2;
+  }
+
+  .abas {
+    grid-row: 3;
+  }
+
+  .resumo {
     grid-row: 4;
+  }
+
+  .avaliar-abre {
+    grid-row: 5;
+  }
+
+  .inicio {
+    grid-row: 6;
+    padding-right: var(--e-meio);
+    overflow-y: auto;
   }
 
   .entrada {
@@ -1236,7 +1260,7 @@ body::before {
   }
 
   .lista {
-    grid-row: 5;
+    grid-row: 6;
     padding-right: var(--e-meio);
     overflow-y: auto;
   }
@@ -1849,6 +1873,271 @@ img.av-card__img {
   gap: var(--e-1);
   margin-left: auto;
   font-size: var(--t-12);
+}
+
+/* ───────── pastas (opção A: as pastas primeiro) ───────── */
+
+.inicio {
+  display: grid;
+  grid-auto-rows: max-content;
+  gap: var(--e-3);
+  align-content: start;
+  padding-block: var(--e-3) var(--e-5);
+}
+
+/* Rótulo da seção, um degrau abaixo do nome de cada pasta, com vão maior antes (grupo novo). */
+.inicio__titulo {
+  margin: var(--e-4) 0 0;
+  font-size: var(--t-12);
+  font-weight: var(--p-titulo);
+  color: var(--tinta-2);
+}
+
+/* "Para separar" e "Chegando": a mesma faixa do cartão do Na prática. */
+.separar {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--e-3);
+  width: 100%;
+  padding: var(--e-3);
+  border: 0;
+  border-radius: var(--raio);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.separar__capa {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--raio-p);
+  background: var(--superficie-2);
+  color: var(--tinta-2);
+  object-fit: cover;
+}
+
+.separar__texto {
+  display: grid;
+  gap: var(--e-0);
+  min-width: 0;
+}
+
+.separar__texto strong {
+  font-size: var(--t-14);
+  font-weight: var(--p-titulo);
+}
+
+.separar__texto span {
+  font-size: var(--t-12);
+  color: var(--tinta-2);
+}
+
+.pastas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-4) var(--e-3);
+}
+
+.pasta {
+  display: grid;
+  grid-auto-rows: max-content;
+  gap: var(--e-1);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tinta);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Capas da pasta em 2 x 2, como as coleções dos Salvos; pasta vazia mostra só o ícone. */
+.mosaico {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: var(--e-0);
+  width: 100%;
+  aspect-ratio: 1;
+  margin-bottom: var(--e-1);
+  border-radius: var(--raio);
+  overflow: hidden;
+  background: var(--superficie);
+}
+
+.mosaico img,
+.mosaico span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--superficie-2);
+  object-fit: cover;
+}
+
+/* Menos de 4 capas: elas ocupam o quadrado inteiro (1 = tudo, 2 = metades, 3 = duas em cima e uma larga). */
+.mosaico--n1 img {
+  grid-area: 1 / 1 / 3 / 3;
+}
+
+.mosaico--n2 img {
+  grid-row: span 2;
+}
+
+.mosaico--n3 img:last-child {
+  grid-column: span 2;
+}
+
+.mosaico--vazio {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  color: var(--tinta-3);
+}
+
+.pasta__nome {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  min-width: 0;
+  font-size: var(--t-14);
+  font-weight: var(--p-titulo);
+}
+
+.pasta__nome span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pasta__n {
+  font-size: var(--t-12);
+  color: var(--tinta-3);
+}
+
+.pasta--esqueleto {
+  cursor: default;
+}
+
+.separar:focus-visible,
+.pasta:focus-visible,
+.opcao-pasta:focus-visible {
+  outline: 2px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.separar,
+.mosaico,
+.opcao-pasta {
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.separar:active,
+.pasta:active,
+.opcao-pasta:active {
+  transform: scale(0.99);
+}
+
+@media (hover: hover) {
+  .separar:hover,
+  .pasta:hover .mosaico,
+  .opcao-pasta:not(:disabled):hover {
+    box-shadow: var(--sombra);
+  }
+
+  .opcao-pasta--sugerida:not(:disabled):hover {
+    box-shadow: inset 0 0 0 2px var(--acao), var(--sombra);
+  }
+}
+
+/* Dentro de uma pasta: voltar, nome e quantos posts. */
+.pasta-topo {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  padding-block: var(--e-1) var(--e-2);
+}
+
+.pasta-topo__nome {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  min-width: 0;
+  margin: 0;
+  font-size: var(--t-18);
+  font-weight: var(--p-titulo);
+}
+
+.pasta-topo__n {
+  font-size: var(--t-12);
+  font-weight: var(--p-texto);
+  color: var(--tinta-3);
+}
+
+/* No zoom: "Em qual pasta fica?" com uma opção por pasta; a que a IA sugeriu vem contornada. */
+.pergunta-pasta {
+  display: grid;
+  gap: var(--e-3);
+  padding: var(--e-4);
+  border-radius: var(--raio);
+  background: var(--superficie);
+}
+
+.pergunta-pasta__titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  margin: 0;
+  font-size: var(--t-14);
+  font-weight: var(--p-titulo);
+}
+
+.pergunta-pasta__dica {
+  margin: 0;
+  font-size: var(--t-12);
+  color: var(--tinta-2);
+}
+
+.opcoes-pasta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--e-2);
+}
+
+.opcao-pasta {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--e-1);
+  min-height: 64px;
+  padding: var(--e-2) var(--e-1);
+  border: 0;
+  border-radius: var(--raio-p);
+  background: var(--superficie-2);
+  color: var(--tinta);
+  font: var(--p-titulo) var(--t-12) / 1.2 var(--familia);
+  text-align: center;
+  cursor: pointer;
+}
+
+.opcao-pasta--sugerida {
+  box-shadow: inset 0 0 0 2px var(--acao);
+}
+
+.opcao-pasta[aria-pressed="true"] {
+  background: var(--tinta);
+  color: var(--fundo);
+}
+
+.opcao-pasta:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* Visor do exemplo: só o resultado sobre o palco escuro, setas, X e tela cheia. Nada rola. */

@@ -31,7 +31,7 @@
   ];
 
   const dados = window.GarimpoDados.criar(window.GARIMPO_CONFIG);
-  const estado = { itens: [], aba: 'pendentes', sequencia: [], atual: null, carregando: true, falha: null, dentro: false };
+  const estado = { itens: [], aba: 'pendentes', sequencia: [], atual: null, carregando: true, falha: null, dentro: false, pastas: [], pasta: null, trocando: null };
 
   // ───────── peças ─────────
 
@@ -91,12 +91,221 @@
 
   // ───────── lista ─────────
 
+  // ───────── pastas (opção A, escolhida pelo Guifa em 16/11/2026: as pastas primeiro) ─────────
+  // A lista vem do perfil do dono (config.pastas). O PC decide a pasta de cada post; sem certeza,
+  // o post fica em "Para separar" e o zoom pergunta. Dono sem pastas vê a grade de sempre.
+
+  const SEPARAR = '_separar';
+  const CHEGANDO = '_chegando';
+  const ICONES_DE_PASTA = new Set(['video', 'imagem', 'telas', 'codigo', 'ideia', 'pessoas', 'estudo', 'trabalho', 'pessoal']);
+  const usaPastas = () => estado.pastas.length > 0;
+  const pastaInfo = (id) => estado.pastas.find((p) => p.id === id);
+  const iconeDaPasta = (p) => (p && ICONES_DE_PASTA.has(p.icone) ? p.icone : 'pasta');
+
+  function pastaDe(item) {
+    const id = item.analise?.pasta?.id;
+    if (id && pastaInfo(id)) return id;
+    // Trabalho real vai para a pasta da skill que o fez (destino da pasta = nome da skill).
+    const skill = String(item.trabalho?.skill || '').toLowerCase();
+    const daSkill = skill && estado.pastas.find((p) => String(p.destino || '').toLowerCase() === skill);
+    return daSkill ? daSkill.id : null;
+  }
+
+  // Trabalho de uma skill sem pasta (a skill não é destino de nenhuma pasta) fica num grupo próprio:
+  // ele não tem ficha para perguntar a pasta.
+  const TRABALHOS = '_trabalhos';
+  const ENCERRADOS = ['recusado', 'desfeito'];
+
+  function grupoDe(item) {
+    const pasta = pastaDe(item);
+    if (pasta) return pasta;
+    if (item.analise) return SEPARAR;
+    return trabalhoPronto(item) ? TRABALHOS : CHEGANDO;
+  }
+
+  const naPasta = (item) => !usaPastas() || estado.pasta === null || grupoDe(item) === estado.pasta;
+  const NOMES_DOS_GRUPOS = { [SEPARAR]: 'Para separar', [CHEGANDO]: 'Chegando', [TRABALHOS]: 'Trabalhos de skill' };
+  const ICONES_DOS_GRUPOS = { [SEPARAR]: 'duvida', [CHEGANDO]: 'relogio', [TRABALHOS]: 'trabalho' };
+  const nomeDoGrupo = (g) => NOMES_DOS_GRUPOS[g] || pastaInfo(g)?.nome || 'Pasta';
+  const iconeDoGrupo = (g) => ICONES_DOS_GRUPOS[g] || iconeDaPasta(pastaInfo(g));
+  const posts = (n) => (n === 1 ? '1 post' : n + ' posts');
+
+  // Até 4 capas: com 1 a 3 a capa ocupa o espaço que sobra (nada de célula cinza parecendo carregar).
+  function mosaico(itens, nomeIcone) {
+    const capas = itens.map((i) => i.midias?.capa).filter(Boolean).slice(0, 4);
+    if (capas.length === 0) return h('span', { class: 'mosaico mosaico--vazio', 'aria-hidden': 'true' }, icone(nomeIcone, 'icone--g'));
+    return h('span', { class: 'mosaico mosaico--n' + capas.length, 'aria-hidden': 'true' }, capas.map((src) => h('img', { src, alt: '', loading: 'lazy' })));
+  }
+
+  function faixaDoInicio(grupo, itens, titulo, texto) {
+    const capa = itens.map((i) => i.midias?.capa).find(Boolean);
+    return h('button', { class: 'separar', type: 'button', 'data-pasta-id': grupo, onclick: () => entrarNaPasta(grupo) },
+      capa ? h('img', { class: 'separar__capa', src: capa, alt: '' }) : h('span', { class: 'separar__capa' }, icone(iconeDoGrupo(grupo))),
+      h('span', { class: 'separar__texto' }, h('strong', { text: titulo }), h('span', { text: texto })),
+      icone('dir'));
+  }
+
+  function renderInicio() {
+    const caixa = ref('inicio');
+    if (estado.carregando) {
+      caixa.replaceChildren(h('div', { class: 'pastas' }, estado.pastas.map(() => h('div', { class: 'pasta pasta--esqueleto', 'aria-hidden': 'true' },
+        h('span', { class: 'mosaico' }), h('span', { class: 'osso osso--medio' })))));
+      return;
+    }
+    if (estado.falha) { caixa.replaceChildren(vazio()); return; }
+    const doGrupo = (g) => estado.itens.filter((i) => grupoDe(i) === g);
+    // Recusado sem pasta não pede mais nada: não conta na faixa.
+    const separar = doGrupo(SEPARAR).filter((i) => !ENCERRADOS.includes(i.status));
+    const chegando = doGrupo(CHEGANDO);
+    const trabalhos = doGrupo(TRABALHOS);
+    const travados = chegando.filter((i) => i.status === 'precisa_gravacao' || i.status === 'erro').length;
+    // Pastas com posts primeiro (na ordem do perfil); as vazias vão para o fim.
+    const ordem = [...estado.pastas].sort((a, b) => Number(doGrupo(a.id).length === 0) - Number(doGrupo(b.id).length === 0));
+    caixa.replaceChildren(...[
+      estado.itens.length === 0 ? vazio() : null,
+      separar.length ? faixaDoInicio(SEPARAR, separar, posts(separar.length) + ' para separar',
+        separar.length === 1 ? 'Diga em qual pasta ele fica' : 'Diga em qual pasta cada um fica') : null,
+      chegando.length ? faixaDoInicio(CHEGANDO, chegando, posts(chegando.length) + ' chegando',
+        travados ? (travados === 1 ? '1 precisa de você' : travados + ' precisam de você') : 'O PC ainda está analisando') : null,
+      trabalhos.length ? faixaDoInicio(TRABALHOS, trabalhos, trabalhos.length === 1 ? '1 trabalho de skill' : trabalhos.length + ' trabalhos de skill', 'Para avaliar') : null,
+      h('h2', { class: 'inicio__titulo', text: 'Pastas' }),
+      h('div', { class: 'pastas' }, ordem.map((p) => {
+        const itens = doGrupo(p.id);
+        const decidir = itens.filter((i) => i.status === 'pronto').length;
+        return h('button', { class: 'pasta', type: 'button', 'data-pasta-id': p.id, onclick: () => entrarNaPasta(p.id) },
+          mosaico(itens, iconeDaPasta(p)),
+          h('span', { class: 'pasta__nome' }, icone(iconeDaPasta(p), 'icone--p'), h('span', { text: p.nome })),
+          h('span', { class: 'pasta__n', text: itens.length === 0 ? 'Vazia' : posts(itens.length) + (decidir ? ' · ' + decidir + ' para decidir' : '') }));
+      })),
+    ].filter(Boolean));
+  }
+
+  function pintarTopoDaPasta() {
+    const dentroDaPasta = usaPastas() && estado.pasta !== null && estado.dentro;
+    ref('pasta-topo').hidden = !dentroDaPasta;
+    if (!dentroDaPasta) return;
+    const n = estado.itens.filter(naPasta).length;
+    ref('pasta-nome').replaceChildren(icone(iconeDoGrupo(estado.pasta)), h('span', { text: nomeDoGrupo(estado.pasta) }),
+      h('span', { class: 'pasta-topo__n', text: posts(n) }));
+  }
+
+  function entrarNaPasta(grupo) {
+    estado.pasta = grupo;
+    const comItens = ABAS.find((a) => estado.itens.some((i) => naPasta(i) && a.tem(i.status)));
+    estado.aba = comItens ? comItens.id : 'pendentes';
+    estado.atual = null;
+    montarSequencia();
+    renderTudo();
+    if (location.hash !== '#pasta') location.hash = 'pasta';
+    ref('pasta-voltar').focus({ preventScroll: true });
+  }
+
+  function sairDaPasta() {
+    if (location.hash === '#pasta') history.back();
+    else aoSairDaPasta();
+  }
+
+  function aoSairDaPasta() {
+    if (estado.pasta === null) return;
+    const de = estado.pasta;
+    estado.pasta = null;
+    estado.aba = 'pendentes';
+    estado.atual = null;
+    montarSequencia();
+    renderTudo();
+    // Depois dos outros avisos de "voltar" (que redesenham a tela), o foco volta para a pasta de onde veio.
+    setTimeout(() => {
+      const volta = ref('inicio').querySelector('[data-pasta-id="' + CSS.escape(de) + '"]');
+      if (volta) volta.focus({ preventScroll: true });
+    }, 0);
+  }
+
+  // No zoom: "Em qual pasta fica?" quando não tem pasta; com pasta, uma linha com "Trocar pasta".
+  function blocoPasta(item) {
+    if (!usaPastas() || !item.analise) return null;
+    const atual = pastaDe(item);
+    if (atual && estado.trocando !== item.id) {
+      const p = pastaInfo(atual);
+      return h('div', { class: 'linhas', 'data-pasta': true },
+        linha(iconeDaPasta(p), 'Pasta', p.nome, h('div', { class: 'linha__acoes' },
+          h('button', { class: 'botao botao--justo', type: 'button', onclick: () => { estado.trocando = item.id; pintarPasta(item); } },
+            icone('pasta'), h('span', { text: 'Trocar pasta' })))));
+    }
+    const sugestoes = (item.analise.pasta?.sugestoes || []).filter((id) => pastaInfo(id));
+    const nomes = sugestoes.slice(0, 2).map((id) => pastaInfo(id).nome);
+    const dica = atual ? 'Agora está em ' + pastaInfo(atual).nome + '.'
+      : nomes.length === 2 ? 'A IA ficou em dúvida: ' + nomes[0] + ' ou ' + nomes[1] + '.'
+        : nomes.length === 1 ? 'A IA acha que é ' + nomes[0] + '.' : 'Escolha onde guardar este post.';
+    return h('section', { class: 'pergunta-pasta', 'data-pasta': true, 'aria-label': 'Em qual pasta fica' },
+      h('p', { class: 'pergunta-pasta__titulo' }, icone('duvida'), atual ? 'Trocar a pasta' : 'Em qual pasta fica?'),
+      h('p', { class: 'pergunta-pasta__dica', text: dica }),
+      h('div', { class: 'opcoes-pasta' }, estado.pastas.map((p) => h('button', {
+        class: 'opcao-pasta' + (sugestoes.includes(p.id) && !atual ? ' opcao-pasta--sugerida' : ''),
+        type: 'button', 'aria-pressed': String(p.id === atual),
+        onclick: (e) => escolherPasta(item, p.id, e.currentTarget),
+      }, icone(iconeDaPasta(p)), h('span', { text: p.nome })))),
+      h('p', { class: 'decisao__erro', role: 'alert', hidden: true }));
+  }
+
+  // No celular, post sem pasta abre com a pergunta no topo (inteira, antes do vídeo): é a decisão dele.
+  // No computador ela já aparece na coluna da ficha, ao lado do vídeo.
+  const perguntaNoTopo = (item) => usaPastas() && !largo.matches && Boolean(item.analise) && !pastaDe(item);
+
+  function pintarPasta(item) {
+    const antigo = ref('corpo').querySelector('[data-pasta]');
+    const novo = blocoPasta(item);
+    if (!antigo || !novo || estado.atual !== item.id) return;
+    antigo.replaceWith(novo);
+    // O foco não cai fora: vai para a pasta marcada (ao trocar) ou para o "Trocar pasta" (depois de escolher).
+    const alvo = estado.trocando === item.id
+      ? novo.querySelector('.opcao-pasta[aria-pressed="true"]') || novo.querySelector('.opcao-pasta')
+      : novo.querySelector('.linha__acoes .botao') || novo.querySelector('.opcao-pasta');
+    if (alvo) alvo.focus({ preventScroll: true });
+  }
+
+  async function escolherPasta(item, id, botao) {
+    const caixa = botao.closest('[data-pasta]');
+    const botoes = [...caixa.querySelectorAll('.opcao-pasta')];
+    const aviso = caixa.querySelector('.decisao__erro');
+    if (id === pastaDe(item)) { estado.trocando = null; pintarPasta(item); return; }
+    botoes.forEach((b) => { b.disabled = true; });
+    botao.querySelector('span').textContent = 'Salvando...';
+    try {
+      await dados.definirPasta(item.id, id);
+      // A lista pode ter sido recarregada durante a espera: grava no item que está valendo agora.
+      const vivo = itemDe(item.id) || item;
+      vivo.analise = Object.assign({}, vivo.analise, { pasta: Object.assign({}, vivo.analise && vivo.analise.pasta, { id, por: 'dono' }) });
+      item = vivo;
+      estado.trocando = null;
+      pintarPasta(item);
+      // A lista, as contagens e a faixa "Para separar" acompanham na hora.
+      montarSequencia();
+      renderAbas();
+      pintarBotaoAvaliar();
+      renderLista();
+      // Em "Para separar" a fila anda: um instante para ver a confirmação e vai para o próximo; acabou, volta às pastas.
+      if (estado.pasta === SEPARAR) {
+        setTimeout(() => {
+          if (estado.atual !== item.id || estado.pasta !== SEPARAR) return;
+          if (estado.sequencia.length > 0) { estado.atual = estado.sequencia[0]; desenharZoom(); ref('corpo').querySelector('.opcao-pasta')?.focus({ preventScroll: true }); }
+          else if (!largo.matches && location.hash === '#post') history.go(-2);
+          else sairDaPasta();
+        }, 700);
+      }
+    } catch (erro) {
+      botoes.forEach((b) => { b.disabled = false; });
+      botao.querySelector('span').textContent = pastaInfo(id).nome;
+      aviso.textContent = 'Não salvou. Confira a internet e toque de novo.';
+      aviso.hidden = false;
+    }
+  }
+
   function montarSequencia() {
     const aba = abaAtual();
     // Trabalho real (mandado por uma skill para avaliar) vem antes dos posts prontos.
     const peso = (i) => (i.status === 'pronto' ? (i.trabalho ? -1 : 0) : 1);
     estado.sequencia = estado.itens
-      .filter((i) => aba.tem(i.status))
+      .filter((i) => aba.tem(i.status) && naPasta(i))
       .sort((a, b) => peso(a) - peso(b)
         || (estado.aba === 'pendentes' ? (b.analise?.nota ?? -1) - (a.analise?.nota ?? -1) : 0)
         || String(b.decidido_em || b.criado_em || '').localeCompare(String(a.decidido_em || a.criado_em || '')))
@@ -105,7 +314,7 @@
 
   function renderAbas() {
     ref('abas').replaceChildren(...ABAS.map((aba) => {
-      const n = estado.itens.filter((i) => aba.tem(i.status)).length;
+      const n = estado.itens.filter((i) => aba.tem(i.status) && naPasta(i)).length;
       return h('button', {
         class: 'aba', type: 'button', 'aria-pressed': String(aba.id === estado.aba),
         onclick: () => trocarAba(aba.id),
@@ -115,8 +324,9 @@
 
   function renderResumo() {
     const caixa = ref('resumo');
-    const prontos = estado.itens.filter((i) => i.status === 'pronto' && i.analise);
-    if (estado.aba !== 'pendentes' || prontos.length < 2) { caixa.hidden = true; return; }
+    const prontos = estado.itens.filter((i) => i.status === 'pronto' && i.analise && naPasta(i));
+    // No início (grade de pastas) o resumo não aparece: ele é de dentro de cada pasta.
+    if (estado.aba !== 'pendentes' || prontos.length < 2 || (usaPastas() && estado.pasta === null)) { caixa.hidden = true; return; }
     const partes = ['vale', 'talvez', 'nao_vale']
       .map((v) => ({ v, n: prontos.filter((i) => i.analise.veredito === v).length }))
       .filter((p) => p.n > 0);
@@ -182,6 +392,13 @@
         h('p', { class: 'vazio__texto', text: estado.falha }),
         h('button', { class: 'botao', type: 'button', onclick: carregar }, 'Tentar de novo'));
     }
+    // Dentro de uma pasta: o vazio fala da pasta e leva de volta às pastas.
+    if (usaPastas() && estado.pasta !== null) {
+      return h('div', { class: 'vazio' }, h('span', { class: 'vazio__selo' }, icone(iconeDoGrupo(estado.pasta), 'icone--g')),
+        h('p', { class: 'vazio__titulo', text: 'Nada aqui em ' + nomeDoGrupo(estado.pasta) }),
+        h('p', { class: 'vazio__texto', text: 'Os posts que a IA guardar nesta pasta aparecem aqui.' }),
+        h('button', { class: 'botao', type: 'button', onclick: sairDaPasta }, icone('esq'), 'Voltar para as pastas'));
+    }
     if (estado.aba === 'pendentes') {
       return h('div', { class: 'vazio' }, h('span', { class: 'vazio__selo' }, icone('gema', 'icone--g')),
         h('p', { class: 'vazio__titulo', text: 'Nada para decidir agora' }),
@@ -196,6 +413,15 @@
 
   function renderLista() {
     const lista = ref('lista');
+    // Com pastas, o começo é a grade de pastas (opção A); a lista aparece dentro de cada pasta.
+    const noInicio = usaPastas() && estado.pasta === null;
+    if (estado.dentro) {
+      lista.hidden = noInicio;
+      ref('abas').hidden = noInicio;
+      ref('inicio').hidden = !noInicio;
+    }
+    pintarTopoDaPasta();
+    if (noInicio) { renderInicio(); return; }
     // Número par de esqueletos: nenhum fica deitado, e a grade não muda de forma quando os posts chegam.
     if (estado.carregando) { lista.replaceChildren(esqueleto(), esqueleto(), esqueleto(), esqueleto()); return; }
     if (estado.falha || estado.sequencia.length === 0) { lista.replaceChildren(vazio()); return; }
@@ -315,6 +541,7 @@
       // O porquê vem logo abaixo do título: é o que decide, e precisa aparecer sem rolar.
       h('p', { class: 'ficha__porque', text: f.porque }),
       depoisDaDecisao(item),
+      perguntaNoTopo(item) ? null : blocoPasta(item),
       blocoPratica(item),
       h('div', { class: 'placar' },
         h('div', { class: 'placar__nota' }, h('span', { class: 'placar__numero' }, icone('gema'), numero(f.nota)), 'de 10'),
@@ -529,7 +756,8 @@
     const pecas = midia(item);
     const corpo = ref('corpo');
     corpo.classList.toggle('zoom__corpo--so-texto', !pecas);
-    corpo.replaceChildren(...[pecas, item.analise ? ficha(item) : trabalhoPronto(item) ? fichaDoTrabalho(item) : semFicha(item)].filter(Boolean));
+    corpo.replaceChildren(...[perguntaNoTopo(item) ? blocoPasta(item) : null, pecas,
+      item.analise ? ficha(item) : trabalhoPronto(item) ? fichaDoTrabalho(item) : semFicha(item)].filter(Boolean));
     corpo.scrollTop = 0;
 
     const decidivel = Boolean(item.analise || item.trabalho) && ['pronto', 'aprovado', 'recusado', 'duvida'].includes(item.status);
@@ -658,7 +886,7 @@
   let ouvindo = null;
 
   function pintarBotaoAvaliar() {
-    const n = estado.itens.filter(prontoParaAvaliar).length;
+    const n = estado.itens.filter((i) => prontoParaAvaliar(i) && naPasta(i)).length;
     ref('abrir-avaliar').hidden = estado.carregando || estado.aba !== 'pendentes' || n === 0;
     ref('avaliar-texto').textContent = 'Avaliar arrastando · ' + n;
   }
@@ -988,9 +1216,13 @@
   async function carregar() {
     estado.carregando = true;
     estado.falha = null;
+    // As pastas vêm antes (consulta pequena): a tela já nasce como grade de pastas, sem piscar a lista.
+    if (!estado.pastas.length && dados.pastas) estado.pastas = await dados.pastas().catch(() => []);
     renderLista();
     try {
-      estado.itens = await dados.listar();
+      const [itens, pastas] = await Promise.all([dados.listar(), dados.pastas ? dados.pastas().catch(() => estado.pastas) : []]);
+      estado.itens = itens;
+      estado.pastas = pastas;
     } catch (erro) {
       estado.falha = 'Confira a internet e tente de novo.';
     }
@@ -1001,6 +1233,11 @@
   }
 
   ref('voltar').addEventListener('click', fechar);
+  ref('pasta-voltar').addEventListener('click', sairDaPasta);
+  // Voltar do celular dentro de uma pasta volta para as pastas.
+  window.addEventListener('hashchange', () => {
+    if (estado.pasta !== null && !['#pasta', '#post', '#avaliar'].includes(location.hash)) aoSairDaPasta();
+  });
   ref('anterior').addEventListener('click', () => mover(-1));
   ref('proximo').addEventListener('click', () => mover(1));
   ref('abrir-colar').addEventListener('click', abrirColar);
@@ -1046,6 +1283,7 @@
     ref('entrada').hidden = !sim;
     ref('abas').hidden = sim;
     ref('lista').hidden = sim;
+    if (sim) { ref('inicio').hidden = true; ref('pasta-topo').hidden = true; }
     ref('abrir-colar').hidden = sim;
     ref('abrir-conta').hidden = sim || dados.modo !== 'nuvem';
     ref('sinal').hidden = dados.modo !== 'demo';
@@ -1195,6 +1433,8 @@
     if (!estado.dentro || estado.carregando || document.hidden) return;
     try {
       estado.itens = await dados.listar();
+      // Pastas que falharam na abertura (ou que o PC mandou depois) entram aqui.
+      if (!estado.pastas.length && dados.pastas) estado.pastas = await dados.pastas().catch(() => []);
     } catch (erro) {
       return;
     }
@@ -1296,6 +1536,8 @@
     const item = estado.itens.find((i) => i.id === id);
     const aba = item && ABAS.find((a) => a.tem(item.status));
     if (!aba) return;
+    // Com pastas, o aviso abre o post dentro da pasta dele (as setas andam entre os vizinhos).
+    if (usaPastas()) estado.pasta = grupoDe(item);
     if (estado.aba !== aba.id) trocarAba(aba.id);
     else { montarSequencia(); renderTudo(); }
     abrir(id);
@@ -1440,8 +1682,8 @@
   }
 
   async function iniciar() {
-    // Recarregou com a pilha aberta: começa pela lista.
-    if (location.hash === '#avaliar') history.replaceState(null, '', location.pathname + location.search);
+    // Recarregou com a pilha ou uma pasta aberta: começa pelo início.
+    if (location.hash === '#avaliar' || location.hash === '#pasta') history.replaceState(null, '', location.pathname + location.search);
     let sessao = null;
     try { sessao = await dados.sessao(); } catch (erro) { /* sem conexão: cai na entrada */ }
     if (dados.modo === 'nuvem' && !sessao) { mostrarEntrada(true); return; }

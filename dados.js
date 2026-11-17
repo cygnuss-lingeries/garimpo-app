@@ -4,6 +4,7 @@
 //   decidir(id, decisao, comentario)               → grava Aprovar / Recusar / Dúvida
 //   darNota(id, nota) / voltar(id)                 → nota do dono (1 a 5) e o Voltar (desfaz a decisão)
 //   pedirPratica(id)                               → pede ao PC o exemplo "Na prática" daquele post
+//   pastas() / definirPasta(id, pasta)             → pastas do dono e a pasta que ele escolheu para um post
 //   capturar(texto)                                → manda um link para a fila
 //   sinal()                                        → situação do garimpeiro (texto curto)
 //   aparelhos() / ligarAparelho() / desligarAparelho()
@@ -50,8 +51,18 @@ window.GarimpoDados = (function () {
 
       async listar() {
         return novos.concat(base).map(function (item) {
-          return Object.assign({}, item, memoria[item.id] || {});
+          const salvo = memoria[item.id] || {};
+          const junto = Object.assign({}, item, salvo);
+          if (salvo.pasta_dono && item.analise) junto.analise = Object.assign({}, item.analise, { pasta: { id: salvo.pasta_dono, por: 'dono' } });
+          return junto;
         });
+      },
+
+      async pastas() { return window.GARIMPO_PASTAS || []; },
+
+      async definirPasta(id, pasta) {
+        memoria[id] = Object.assign({}, memoria[id], { pasta_dono: pasta });
+        gravar(memoria);
       },
 
       async decidir(id, decisao, comentario) {
@@ -220,6 +231,17 @@ window.GarimpoDados = (function () {
 
       async pedirPratica(id) {
         const r = await banco.rpc('pedir_pratica', { p_item: id });
+        if (r.error) throw traduzir(r.error);
+      },
+
+      async pastas() {
+        const r = await banco.from('config').select('pastas').maybeSingle();
+        if (r.error) throw traduzir(r.error);
+        return (r.data && Array.isArray(r.data.pastas)) ? r.data.pastas : [];
+      },
+
+      async definirPasta(id, pasta) {
+        const r = await banco.rpc('definir_pasta', { p_item: id, p_pasta: pasta });
         if (r.error) throw traduzir(r.error);
       },
 
